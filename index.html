@@ -14,7 +14,10 @@
     </head>
     <body>
         <div hx-ext="ws" ws-connect="/ws">
-            <div ws-send="increment">Increment</div>
+            <form ws-send>
+                <button name="method" value="increment">Increment</button>
+                <button name="method" value="decrement">Decrement</button>
+            </form>
             <div id="count">0</div>
         </div>
     </body>

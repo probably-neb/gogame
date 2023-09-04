@@ -5,46 +5,89 @@ import (
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
+    "encoding/json"
 )
 
-var upgrader = websocket.Upgrader{
+type HXWSCountMessage struct {
+    Method string               `json:"method"`
+    HEADERS map[string]string   `json:"HEADERS"`
+}
+
+var upgrader = websocket.Upgrader {
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
+var count int = 0
+var clients = make(map[*websocket.Conn]bool)
+var broadcast = make(chan string)
+
+func sendCount(conn *websocket.Conn) {
+        response := []byte(fmt.Sprintf("<div id=\"count\">%d</div>", count))
+            err := conn.WriteMessage(websocket.TextMessage, response)
+            if err != nil {
+                log.Println(err)
+                delete(clients,conn)
+                return
+            }
+}
+
+func broadcastMessages() {
+    for {
+        // grab the next message from the broadcast channel
+        cmd := <-broadcast
+        log.Println("propogating:", cmd)
+        switch cmd {
+        case "increment":
+            count++
+        case "decrement":
+            count--
+        default:
+            log.Println("Unknown method:", cmd)
+        };
+
+        // send it out to every client that is currently connected
+        for conn := range clients {
+            sendCount(conn);
+        }
+    }
+}
+
 func main() {
-	var count int = 0
 	// Set routing rules
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "index.html")
 	})
+
+    go broadcastMessages()
+
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		// upgrade this connection to a WebSocket
-		ws, err := upgrader.Upgrade(w, r, nil)
+		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			log.Println(err)
 		}
+        clients[conn] = true
+        sendCount(conn)
 
 		log.Println("Client Connected")
-		for {
-			// read in a message
-			messageType, p, err := ws.ReadMessage()
-			if err != nil {
-				log.Println(err)
-				return
-			}
-			// print out that message for clarity
-			log.Println("WebSocket Message Received: [", messageType,"]", string(p))
+        for {
+            _, p, err := conn.ReadMessage()
+            if err != nil {
+                log.Println(err)
+                delete(clients,conn)
+                return
+            }
+            var cmd HXWSCountMessage
+            if err := json.Unmarshal(p, &cmd); err != nil {
+                log.Println(err)
+            }
+            // print out that message for clarity
+            log.Println("WebSocket Message Received:", cmd.Method)
 
-            count++;
-			msg := []byte(fmt.Sprintf("<div id=\"count\">%d</div>", count))
-			err = ws.WriteMessage(websocket.TextMessage, msg)
-			if err != nil {
-				log.Println(err)
-				return
-			}
-		}
+            broadcast <- cmd.Method
+        }
 	})
 
 	fmt.Println("Server started at 8080 port")
