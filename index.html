@@ -8,8 +8,9 @@
         <meta name="robots" content="index, follow" />
         <meta name="revisit-after" content="7 days" />
         <meta name="language" content="English" />
+        <script src="https://unpkg.com/htmx.org@1.9.5" integrity="sha384-xcuj3WpfgjlKF+FXhSQFQ0ZNr39ln+hwjN3npfM9VBnUskLolQAcN80McRIVOPuO" crossorigin="anonymous"></script>
     </head>
     <body>
-        Hello World!
+       <p>Count:</p> <span id="count" hx-get="/count">0</span>
     </body>
 </html>
