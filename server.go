@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
     "encoding/json"
+    "github.com/a-h/templ"
+    "gogame/partials"
 )
 
 type HXWSCountMessage struct {
@@ -89,6 +91,7 @@ func main() {
             broadcast <- cmd.Method
         }
 	})
+    http.Handle("/board", templ.Handler(partials.Board(20, 20)))
 
 	fmt.Println("Server started at 8080 port")
 	//Use the default DefaultServeMux.

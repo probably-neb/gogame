@@ -1,0 +1,25 @@
+package partials
+
+templ Box() {
+    <div class="relative border-1 h-[10px] w-[10px]">
+        <button name="top" class="bg-blue-600 absolute top-0 inset-x-0 w-[10px] h-[2px]"></button>
+
+        <button name="left" class="bg-blue-600 absolute left-0 inset-y-0 h-[10px] w-[2px]"></button>
+
+        <button name="right" class="bg-blue-600 absolute right-0 inset-y-0 h-[10px] w-[2px]"></button>
+
+        <button name="bottom" class="bg-blue-600 absolute bottom-0 inset-x-0 w-[10px] h-[2px]"></button>
+    </div>
+}
+
+templ Board(rows int, cols int) {
+    <div id="board" class="grid grid-cols-10 grid-cols-10 w-[100px] h-[100px] gap-x-0">
+   for row := 0; row < 10; row++ {
+      for col := 0; col < 10; col++ {
+        <div>
+            @Box()
+        </div>
+      }
+   }
+   </div>
+}
