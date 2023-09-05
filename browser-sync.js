@@ -14,6 +14,7 @@ function just(cmd) {
     }
     proc.stdout.on("data", strlog("log"));
     proc.stderr.on("data", strlog("error"));
+    return proc;
 }
 
 function reload_server() {
@@ -21,6 +22,7 @@ function reload_server() {
         server_proc.on("exit", () => {
             server_proc = just("build")
         })
+        console.log("killing server");
         server_proc.kill();
     } else {
         server_proc = just("build");
@@ -34,7 +36,7 @@ bs.watch(["**/*.html", "**/*.templ", "**/*.go"], function (event, file) {
         return
     if (event == "add")
         return
-    console.log("file", file, event, "rebuilding");
+    console.log(`[${event}]`, file, "...", "rebuilding");
     reload_server();
     bs.reload();
 });
@@ -46,3 +48,4 @@ bs.init({
     },
     open: false,
 });
+reload_server();
