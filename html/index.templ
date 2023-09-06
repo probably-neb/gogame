@@ -1,0 +1,77 @@
+package html
+
+templ Layout(title string) {
+    <!doctype html>
+    <html lang="en">
+        <head>
+            <meta charset="UTF-8" />
+            <title>{title}</title>
+            <link rel="icon" type="image/svg+xml" href="/dist/favicon.svg" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <meta name="robots" content="index, follow" />
+            <meta name="revisit-after" content="7 days" />
+            <meta name="language" content="English" />
+            <script src="https://unpkg.com/htmx.org@1.9.5" integrity="sha384-xcuj3WpfgjlKF+FXhSQFQ0ZNr39ln+hwjN3npfM9VBnUskLolQAcN80McRIVOPuO" crossorigin="anonymous"></script>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <script src="https://unpkg.com/htmx.org/dist/ext/ws.js"></script>
+        </head>
+        <body>
+            { children... }
+        </body>
+    </html>
+}
+
+templ LandingPage() {
+    @Layout("GOGAME!") {
+        <button id="create-room" class="rounded-md border-2 border-black" hx-get="/rooms/create" hx-target="body" hx-swap="afterbegin">Create Room</button>
+        <button id="join-room" class="rounded-md border-2 border-black" hx-get="/rooms/join">Join Room</button>
+    }
+}
+
+templ RoomPage(name string) {
+    @Layout(name) {
+        <h3>{name}</h3>
+        <h2>players: 1</h2>
+    }
+}
+
+// Background backdrop, show/hide based on modal state.
+
+// Entering: "ease-out duration-300"
+// From: "opacity-0"
+// To: "opacity-100"
+// Leaving: "ease-in duration-200"
+// From: "opacity-100"
+// To: "opacity-0"
+
+templ CreateRoomModal() {
+<div class="relative z-10" id="create-room-modal" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+  <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+
+  <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+    <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+      <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+        <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+          <div class="sm:flex sm:items-start">
+            <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+            </div>
+            <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
+              <h3 class="text-base font-semibold leading-6 text-gray-900" id="modal-title">Create Room</h3>
+              <div class="mt-2" id="modal-body">
+                <form class="text-small text-gray-800" hx-post="/rooms/create">
+                    <label for="name">Room Name:</label>
+                    <input type="text" name="name" id="name" placeholder="Room Name" class="rounded-md border-2 border-black"></input>
+                    <button type="submit" class="rounded-md border-2 border-black">Create</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="modal-footer" class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+          <button type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto" hx-get="/rooms/create/cancel" hx-swap="delete" hx-target="#create-room-modal">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+}

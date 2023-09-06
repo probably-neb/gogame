@@ -1,21 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/a-h/templ"
 	"github.com/gorilla/websocket"
-	"gogame/games/tictactoe"
-	"gogame/partials"
-    "gogame/htmx"
 	"log"
 	"net/http"
+    "gogame/html"
 )
-
-type HXWSCountMessage struct {
-	Method  string    `json:"method"`
-	Headers htmx.HXHeaders `json:"HEADERS"`
-}
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -23,78 +15,36 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
-var count int = 0
-var clients = make(map[*websocket.Conn]bool)
-var broadcast = make(chan string)
-
-func sendCount(conn *websocket.Conn) {
-	response := []byte(fmt.Sprintf("<div id=\"count\">%d</div>", count))
-	err := conn.WriteMessage(websocket.TextMessage, response)
-	if err != nil {
-		log.Println(err)
-		delete(clients, conn)
-		return
-	}
+type Room struct {
+    name string
+    host *websocket.Conn
+    guests []*websocket.Conn
 }
 
-func broadcastMessages() {
-	for {
-		// grab the next message from the broadcast channel
-		cmd := <-broadcast
-		log.Println("propogating:", cmd)
-		switch cmd {
-		case "increment":
-			count++
-		case "decrement":
-			count--
-		default:
-			log.Println("Unknown method:", cmd)
-		}
-
-		// send it out to every client that is currently connected
-		for conn := range clients {
-			sendCount(conn)
-		}
-	}
-}
+var rooms = make(map[string]*Room)
 
 func main() {
-	// Set routing rules
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "index.html")
-	})
-
-	go broadcastMessages()
-
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		// upgrade this connection to a WebSocket
-		conn, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			log.Println(err)
-		}
-		clients[conn] = true
-		sendCount(conn)
-
-		log.Println("Client Connected")
-		for {
-			_, p, err := conn.ReadMessage()
-			if err != nil {
-				log.Println(err)
-				delete(clients, conn)
-				return
-			}
-			var cmd HXWSCountMessage
-			if err := json.Unmarshal(p, &cmd); err != nil {
-				log.Println(err)
-			}
-			// print out that message for clarity
-			log.Println("WebSocket Message Received:", cmd.Method)
-
-			broadcast <- cmd.Method
-		}
-	})
-	http.Handle("/board", templ.Handler(partials.Board(20, 20)))
-	tictactoe.AddHandlers()
+	http.Handle("/", templ.Handler(html.LandingPage()))
+    http.HandleFunc("/rooms", func(w http.ResponseWriter, r *http.Request) {
+        var room = r.URL.Query().Get("q")
+        log.Println("access to room: [", room, "]")
+        html.RoomPage(room).Render(r.Context(), w)
+    })
+    http.HandleFunc("/rooms/create", func(w http.ResponseWriter, r *http.Request) {
+        if r.Method == http.MethodGet {
+            html.CreateRoomModal().Render(r.Context(), w)
+        } else if r.Method == http.MethodPost {
+            name := r.FormValue("name")
+            // TODO: error handling (form validation!)
+            log.Println("create room", name)
+            location := "/rooms?q="+name
+            w.Header().Set("HX-Redirect", location)
+            w.WriteHeader(http.StatusSeeOther)
+        }
+    })
+    http.HandleFunc("/rooms/create/cancel", func(w http.ResponseWriter, r *http.Request) {
+        w.WriteHeader(http.StatusOK)
+    })
 
 	fmt.Println("Server started at 8080 port")
 	//Use the default DefaultServeMux.
