@@ -27,7 +27,15 @@ func Box(id string, symbol *rune) templ.Component {
 			return err
 		}
 		if symbol == nil {
-			_, err = templBuffer.WriteString(" ws-send")
+			_, err = templBuffer.WriteString(" ws-send hx-vals=\"")
+			if err != nil {
+				return err
+			}
+			_, err = templBuffer.WriteString(templ.EscapeString(`{"id": "id"}`))
+			if err != nil {
+				return err
+			}
+			_, err = templBuffer.WriteString("\"")
 			if err != nil {
 				return err
 			}
