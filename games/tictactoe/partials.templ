@@ -1,27 +1,31 @@
 package tictactoe
 
-templ Box(id string, symbol rune) {
+templ Box(id string, symbol *rune) {
     <div
-        ws-send
+        if symbol == nil {
+            ws-send
+        }
         name="cell"
         id={id}
         class="bg-gray-300 h-16 flex items-center justify-center text-4xl font-bold cursor-pointer"
     >
-        {string(symbol)}
+        if symbol != nil {
+            {string(*symbol)}
+        }
     </div>
 }
 
 templ Board() {
         <div class="grid grid-cols-3 gap-2">
-                @Box("cell-1", 0)
-                @Box("cell-2", 0)
-                @Box("cell-3", 0)
-                @Box("cell-4", 0)
-                @Box("cell-5", 0)
-                @Box("cell-6", 0)
-                @Box("cell-7", 0)
-                @Box("cell-8", 0)
-                @Box("cell-9", 0)
+                @Box("cell-1", nil)
+                @Box("cell-2", nil)
+                @Box("cell-3", nil)
+                @Box("cell-4", nil)
+                @Box("cell-5", nil)
+                @Box("cell-6", nil)
+                @Box("cell-7", nil)
+                @Box("cell-8", nil)
+                @Box("cell-9", nil)
         </div>
 }
 

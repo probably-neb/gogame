@@ -57,7 +57,7 @@ func AddHandlers() {
                 log.Println(err)
             }
 
-            Box(cell_id, symbol).Render(r.Context(), writer)
+            Box(cell_id, &symbol).Render(r.Context(), writer)
             err = writer.Close()
             if err != nil {
                 log.Println(err)

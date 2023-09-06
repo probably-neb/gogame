@@ -9,7 +9,7 @@ import "context"
 import "io"
 import "bytes"
 
-func Box(id string, symbol rune) templ.Component {
+func Box(id string, symbol *rune) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -22,7 +22,17 @@ func Box(id string, symbol rune) templ.Component {
 			var_1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, err = templBuffer.WriteString("<div ws-send name=\"cell\" id=\"")
+		_, err = templBuffer.WriteString("<div")
+		if err != nil {
+			return err
+		}
+		if symbol == nil {
+			_, err = templBuffer.WriteString(" ws-send")
+			if err != nil {
+				return err
+			}
+		}
+		_, err = templBuffer.WriteString(" name=\"cell\" id=\"")
 		if err != nil {
 			return err
 		}
@@ -34,10 +44,12 @@ func Box(id string, symbol rune) templ.Component {
 		if err != nil {
 			return err
 		}
-		var var_2 string = string(symbol)
-		_, err = templBuffer.WriteString(templ.EscapeString(var_2))
-		if err != nil {
-			return err
+		if symbol != nil {
+			var var_2 string = string(*symbol)
+			_, err = templBuffer.WriteString(templ.EscapeString(var_2))
+			if err != nil {
+				return err
+			}
 		}
 		_, err = templBuffer.WriteString("</div>")
 		if err != nil {
@@ -67,39 +79,39 @@ func Board() templ.Component {
 		if err != nil {
 			return err
 		}
-		err = Box("cell-1", 0).Render(ctx, templBuffer)
+		err = Box("cell-1", nil).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("cell-2", 0).Render(ctx, templBuffer)
+		err = Box("cell-2", nil).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("cell-3", 0).Render(ctx, templBuffer)
+		err = Box("cell-3", nil).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("cell-4", 0).Render(ctx, templBuffer)
+		err = Box("cell-4", nil).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("cell-5", 0).Render(ctx, templBuffer)
+		err = Box("cell-5", nil).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("cell-6", 0).Render(ctx, templBuffer)
+		err = Box("cell-6", nil).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("cell-7", 0).Render(ctx, templBuffer)
+		err = Box("cell-7", nil).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("cell-8", 0).Render(ctx, templBuffer)
+		err = Box("cell-8", nil).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("cell-9", 0).Render(ctx, templBuffer)
+		err = Box("cell-9", nil).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
