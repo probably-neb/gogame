@@ -16,13 +16,15 @@ var upgrader = websocket.Upgrader {
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
+type Symbol rune
+
 type Move struct {
     cell string
-    playerId int
+    symbol Symbol
 }
 
 type Player struct {
-    symbol rune
+    symbol Symbol
     conn *websocket.Conn
 }
 
@@ -32,7 +34,49 @@ type Game struct {
     started bool
 }
 
-func listenForMoves(id int, conn *websocket.Conn, moves chan Move) {
+func (g *Game) Start(host *websocket.Conn) {
+    g.host.conn = host
+    g.host.symbol = 'x'
+    g.guest.conn = nil
+    g.guest.symbol = 'o'
+    g.started = true
+}
+
+
+func (g *Game) Join(guest *websocket.Conn) {
+    // TODO: check if game is started & !full
+    g.guest.conn = guest
+    if g.guest.conn == g.host.conn {
+        log.Println("same connection")
+    }
+}
+
+func (g *Game) Run() {
+    moves := make(chan Move)
+    go listenForMoves(g.host.symbol, g.host.conn, moves)
+    go listenForMoves(g.guest.symbol, g.guest.conn, moves)
+    turn := g.host.symbol
+    for {
+        move := <-moves
+        if move.symbol != turn {
+            log.Println("wrong turn it's", turn, "turn")
+            // TODO: send error
+            continue;
+        } else if turn == g.host.symbol {
+            log.Println("guest's turn")
+            turn = g.guest.symbol
+        } else {
+            log.Println("host's turn")
+            turn = g.host.symbol
+        }
+
+        sendMove(move, g.host.conn)
+        sendMove(move, g.guest.conn)
+    }
+}
+
+
+func listenForMoves(symbol Symbol, conn *websocket.Conn, moves chan Move) {
     for {
         _, p, err := conn.ReadMessage()
         if err != nil {
@@ -45,18 +89,18 @@ func listenForMoves(id int, conn *websocket.Conn, moves chan Move) {
             return
         }
         cell_id := req.Headers.HXTarget
-        log.Println("request for", req.Headers.HXTriggerName,cell_id)
-        moves <- Move{cell: cell_id, playerId: id}
+        log.Println(string(symbol),"played",cell_id)
+        moves <- Move{cell: cell_id, symbol: symbol}
     }
 }
 
-func sendMove(symbol rune, cell string, conn *websocket.Conn) {
+func sendMove(move Move, conn *websocket.Conn) {
     writer, err := conn.NextWriter(websocket.TextMessage)
     if err != nil {
         log.Println(err)
     }
-
-    Box(cell, &symbol).Render(context.TODO(), writer)
+    symbol := rune(move.symbol)
+    Box(move.cell, &symbol).Render(context.TODO(), writer)
     err = writer.Close()
     if err != nil {
         log.Println(err)
@@ -64,36 +108,6 @@ func sendMove(symbol rune, cell string, conn *websocket.Conn) {
     }
 }
 
-func (g *Game) Run() {
-    moves := make(chan Move)
-    go listenForMoves(0, g.host.conn, moves)
-    go listenForMoves(1, g.guest.conn, moves)
-    for {
-        move := <-moves
-        var symbol rune
-        if move.playerId == 0 {
-            symbol = g.host.symbol
-        } else {
-            symbol = g.guest.symbol
-        }
-
-        sendMove(symbol, move.cell, g.host.conn)
-        sendMove(symbol, move.cell, g.guest.conn)
-    }
-}
-
-func (g *Game) Start(host *websocket.Conn) {
-    g.host.conn = host
-    g.host.symbol = 'x'
-    g.guest.conn = nil
-    g.guest.symbol = 'o'
-    g.started = true
-}
-
-func (g *Game) Join(guest *websocket.Conn) {
-    // TODO: check if game is started & !full
-    g.guest.conn = guest
-}
 
 type TTTRequest struct {
     Headers htmx.HXHeaders `json:"HEADERS"`
@@ -108,7 +122,7 @@ func AddHandlers() {
 		if err != nil {
 			log.Println(err)
 		}
-		log.Println("Client Connected")
+		log.Println("Client Connected", conn.RemoteAddr(), conn.LocalAddr())
         if !game.started {
             log.Println("starting game")
             game.Start(conn)
