@@ -44,8 +44,7 @@ bs.watch(["**/*.html", "**/*.templ", "**/*.go"], function (event, file) {
 bs.init({
     proxy: {
         target: "localhost:8080",
-        ws: true,
-    },
+        ws: false, },
     open: false,
 });
 reload_server();
