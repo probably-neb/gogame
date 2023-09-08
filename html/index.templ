@@ -30,13 +30,6 @@ templ LandingPage() {
     }
 }
 
-templ RoomPage(name string) {
-    @Layout(name) {
-        <h3>{name}</h3>
-        <h2>players: 1</h2>
-    }
-}
-
 // Background backdrop, show/hide based on modal state.
 
 // Entering: "ease-out duration-300"
@@ -80,6 +73,21 @@ type Room struct {
     Name string
     Players []string
 }
+
+templ RoomPage(room Room) {
+    @Layout(room.Name) {
+        <div hx-ext="ws" ws-connect={"/rooms/ws?q="+room.Name }>
+            <h3>{room.Name}</h3>
+            <h2>players:</h2>
+            <ul id="players">
+                for _, player := range room.Players {
+                    <li>{player}</li>
+                }
+            </ul>
+        </div>
+    }
+}
+
 
 templ JoinRoomEntry(room Room) {
     <h3>{room.Name}</h3>
