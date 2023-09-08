@@ -21,7 +21,8 @@ type Room struct {
     guests []*websocket.Conn
 }
 
-var rooms = make(map[string]*Room)
+// TODO: store this in db
+var rooms = make(map[string]Room)
 
 func main() {
 	http.Handle("/", templ.Handler(html.LandingPage()))
@@ -40,10 +41,25 @@ func main() {
             location := "/rooms?q="+name
             w.Header().Set("HX-Redirect", location)
             w.WriteHeader(http.StatusSeeOther)
+            rooms[name] = Room{name: name}
         }
     })
     http.HandleFunc("/rooms/create/cancel", func(w http.ResponseWriter, r *http.Request) {
+        // NOTE: cannot be http.StatusNoContent because htmx will do nothing when it should
+        // remove the modal according to the hx- attributes
         w.WriteHeader(http.StatusOK)
+    })
+    http.HandleFunc("/rooms/join", func(w http.ResponseWriter, r *http.Request) {
+        var room_infos = make([]html.Room, len(rooms));
+        i := 0
+        for _, room := range rooms {
+            if room.name == "" {
+                continue;
+            }
+            room_infos[i] = html.Room{Name: room.name, Players: make([]string, 0)}
+            i++
+        }
+        html.JoinRoomPage(room_infos).Render(r.Context(), w)
     })
 
 	fmt.Println("Server started at 8080 port")
