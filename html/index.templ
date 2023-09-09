@@ -25,9 +25,25 @@ templ Layout(title string) {
 
 templ LandingPage() {
     @Layout("GOGAME!") {
+        @SessionData("")
+        @ProfileInput()
         <button id="create-room" class="rounded-md border-2 border-black" hx-get="/rooms/create" hx-target="body" hx-swap="afterbegin">Create Room</button>
         <button id="join-room" class="rounded-md border-2 border-black"><a href="/rooms/join" hx-boost="true">Join Room</a></button>
     }
+}
+
+templ ProfileInput() {
+    <form id="profile-input" hx-get="/profile" hx-swap="none">
+        <label for="name">Name</label>
+        <input id="name" name="name" placeholder="Name" type="text"></input>
+    </form>
+}
+
+templ SessionData(value string) {
+    <input id="session" type="hidden" 
+    if value != "" {
+        hx-swap-oob="true"
+    } hx-preserve="true" value={value}></input>
 }
 
 // CREDIT: shadcn-ui dialog
@@ -102,14 +118,22 @@ templ JoinRoomEntry(room Room) {
     <button id="join-room" class="rounded-md border-2 border-black"><a href={templ.SafeURL("/rooms?q="+room.Name)} hx-boost="true">Join Room</a></button>
 }
 
-templ JoinRoomPage(rooms []Room) {
-    @Layout("Join Room") {
-        <ul>
+    /* @SessionData("") */
+templ RoomsList(rooms []Room) {
+    @SessionData("")
+    <ul>
         for _, room := range rooms {
             <li id={room.Name}>
                 @JoinRoomEntry(room)
             </li>
         }
-        </ul>
+    </ul>
+}
+
+// TODO: use HX headers to differentiate between hx request vs normal fetch
+// to decide whether or not to render entire page or just roomslist
+templ JoinRoomPage(rooms []Room) {
+    @Layout("Join Room") {
+        @RoomsList(rooms)
     }
 }

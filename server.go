@@ -12,12 +12,17 @@ import (
     "context"
 )
 
-const MAX_GUESTS = 5 
+const MAX_GUESTS = 5
 
 var upgrader = websocket.Upgrader{
     ReadBufferSize:  1024,
     WriteBufferSize: 1024,
-    CheckOrigin:     func(r *http.Request) bool { return true },
+    // TODO:actually check origin
+    CheckOrigin: func(r *http.Request) bool { return true },
+}
+
+type Session struct {
+    Name string
 }
 
 type Player struct {
@@ -152,11 +157,21 @@ func ConnWriteTemplate(conn *websocket.Conn, t templ.Component) error {
     return nil
 }
 
+func profileHandler(w http.ResponseWriter, r *http.Request) {
+    formName := r.FormValue("name")
+    jsonSession, err := json.Marshal(Session{Name: formName})
+    if err != nil {
+        log.Println(err)
+    }
+    html.SessionData(string(jsonSession)).Render(r.Context(), w);
+}
+
 func main() {
     // TODO: store this in db
     var rooms = make(map[string]*Room)
 
     http.Handle("/", templ.Handler(html.LandingPage()))
+    http.HandleFunc("/profile", profileHandler)
     http.HandleFunc("/rooms", func(w http.ResponseWriter, r *http.Request) {
         room_name := r.URL.Query().Get("q")
         isNewGuest := r.URL.Query().Get("host") != "true"
@@ -236,7 +251,11 @@ func main() {
             roomInfos[i] = room.toHTMLRoom();
             i++;
         }
-        html.JoinRoomPage(roomInfos).Render(r.Context(), w)
+        if r.Header.Get("HX-Request") == "true" {
+            html.RoomsList(roomInfos).Render(r.Context(), w)
+        } else {
+            html.JoinRoomPage(roomInfos).Render(r.Context(), w)
+        }
     })
 
     fmt.Println("Server started at 8080 port")
