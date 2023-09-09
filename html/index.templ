@@ -13,9 +13,9 @@ templ Layout(title string) {
             <meta name="robots" content="index, follow" />
             <meta name="revisit-after" content="7 days" />
             <meta name="language" content="English" />
-            <script src="https://unpkg.com/htmx.org@1.9.5" integrity="sha384-xcuj3WpfgjlKF+FXhSQFQ0ZNr39ln+hwjN3npfM9VBnUskLolQAcN80McRIVOPuO" crossorigin="anonymous"></script>
+            <script src="https://unpkg.com/htmx.org@1.9.5/dist/htmx.js"></script>
             <script src="https://cdn.tailwindcss.com"></script>
-            <script src="https://unpkg.com/htmx.org/dist/ext/ws.js"></script>
+            <script src="https://unpkg.com/htmx.org@1.9.5/dist/ext/ws.js"></script>
         </head>
         <body>
             { children... }
@@ -30,68 +30,75 @@ templ LandingPage() {
     }
 }
 
-// Background backdrop, show/hide based on modal state.
-
-// Entering: "ease-out duration-300"
-// From: "opacity-0"
-// To: "opacity-100"
-// Leaving: "ease-in duration-200"
-// From: "opacity-100"
-// To: "opacity-0"
+// CREDIT: shadcn-ui dialog
+templ Modal(id string) {
+    <div id={id}>
+        <div data-state="open" class="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" style="pointer-events: auto;" data-aria-hidden="true" aria-hidden="true"></div>
+        <div role="dialog" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg md:w-full sm:max-w-[425px]" tabindex="-1" style="pointer-events: auto;">
+            { children... }
+        </div>
+    </div>
+}
 
 templ CreateRoomModal() {
-<div class="relative z-10" id="create-room-modal" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-  <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
-
-  <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
-    <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-      <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
-        <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
-          <div class="sm:flex sm:items-start">
-            <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-              <h3 class="text-base font-semibold leading-6 text-gray-900" id="modal-title">Create Room</h3>
-              <div class="mt-2" id="modal-body">
-                <form class="text-small text-gray-800" hx-post="/rooms/create">
-                    <label for="name">Room Name:</label>
-                    <input type="text" name="name" id="name" placeholder="Room Name" class="rounded-md border-2 border-black"></input>
-                    <button type="submit" class="rounded-md border-2 border-black">Create</button>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div id="modal-footer" class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-          <button type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto" hx-get="/rooms/create/cancel" hx-swap="delete" hx-target="#create-room-modal">Cancel</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+    @Modal("create-room-modal") {
+        <form class="text-small text-gray-800" hx-post="/rooms/create">
+            <label for="room-name">Room Name:</label>
+            <input type="text" name="room-name" id="room-name" placeholder="Room Name" class="rounded-md border-2 border-black"></input>
+            <label for="display-name">Display Name:</label>
+            <input type="text" name="display-name" id="display-name" placeholder="Display Name" class="rounded-md border-2 border-black"></input>
+            <button id="create" type="submit" class="rounded-md border-2 border-black">Create</button>
+            <button type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto" hx-get="/ok" hx-swap="delete" hx-target="#create-room-modal">Cancel</button>
+        </form>
+    }
 }
 
 type Room struct {
     Name string
-    Players []string
+    Host string
+    Guests []string
 }
 
-templ RoomPage(room Room) {
+templ LobbyGuest(name string) {
+    <li id={name}>{name}</li>
+}
+
+templ GuestList(guests []string, append bool) {
+        <ul id="players" if append {
+            hx-swap-oob="beforeend"
+        }>
+            for _, guest := range guests {
+                @LobbyGuest(guest)
+            }
+        </ul>
+}
+
+templ RoomPage(room Room, newGuest bool) {
     @Layout(room.Name) {
-        <div hx-ext="ws" ws-connect={"/rooms/ws?q="+room.Name }>
-            <h3>{room.Name}</h3>
-            <h2>players:</h2>
-            <ul id="players">
-                for _, player := range room.Players {
-                    <li>{player}</li>
+        <div id="ws-connection" hx-ext="ws" ws-connect={"/rooms/ws?q="+room.Name }>
+            if newGuest {
+                @Modal("join-room-modal") {
+                    <form ws-send hx-get={"/rooms?q=" + room.Name} hx-push-url="true" hx-target="#ws-connection" hx-swap="innerHTML">
+                        <label for="display-name">Display Name:</label>
+                        <input type="text" name="display-name" id="display-name" placeholder="Display Name" class="rounded-md border-2 border-black"></input>
+                        <button id="join" type="submit" class="rounded-md border-2 border-black">Join</button>
+                    </form>
                 }
-            </ul>
+            }
+            <h3>{room.Name}</h3>
+            <h2>Host:</h2>
+            <p id="host">{room.Host}</p>
+            <h2>Guests:</h2>
+            @GuestList(room.Guests, false)
         </div>
     }
 }
 
-
 templ JoinRoomEntry(room Room) {
     <h3>{room.Name}</h3>
-    <h2>players: {fmt.Sprint(len(room.Players))}</h2>
+    <h2>Host:</h2>
+    <p>{room.Host}</p>
+    <h2>Guests: {fmt.Sprint(len(room.Guests))}</h2>
     <button id="join-room" class="rounded-md border-2 border-black"><a href={templ.SafeURL("/rooms?q="+room.Name)} hx-boost="true">Join Room</a></button>
 }
 
@@ -99,7 +106,7 @@ templ JoinRoomPage(rooms []Room) {
     @Layout("Join Room") {
         <ul>
         for _, room := range rooms {
-            <li>
+            <li id={room.Name}>
                 @JoinRoomEntry(room)
             </li>
         }

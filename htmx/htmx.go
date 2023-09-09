@@ -1,7 +1,7 @@
 package htmx
 
 
-type HXHeaders struct {
+type Headers struct {
 	HXRequest     string   `json:"HX-Request"`
 	HXTrigger     string `json:"HX-Trigger"`
 	HXTriggerName string `json:"HX-Trigger-Name"`
