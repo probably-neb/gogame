@@ -17,33 +17,36 @@ templ Layout(title string) {
             <script src="https://cdn.tailwindcss.com"></script>
             <script src="https://unpkg.com/htmx.org@1.9.5/dist/ext/ws.js"></script>
         </head>
-        <body>
+        <body id="body">
             { children... }
         </body>
     </html>
 }
 
+func RoomURL(id string, rest string) string {
+    if rest[0] != '/' {
+        rest = "/" + rest
+    }
+    return "/rooms/" + id + rest
+}
+
 templ LandingPage() {
     @Layout("GOGAME!") {
-        @SessionData("")
-        @ProfileInput()
-        <button id="create-room" class="rounded-md border-2 border-black" hx-get="/rooms/create" hx-target="body" hx-swap="afterbegin">Create Room</button>
-        <button id="join-room" class="rounded-md border-2 border-black"><a href="/rooms/join" hx-boost="true">Join Room</a></button>
+        <div hx-boost="true">
+            <button
+                id="create-room"
+                class="rounded-md border-2 border-black"
+            >
+                <a href="/rooms/create">Create Room</a>
+            </button>
+            <button
+                id="join-room"
+                class="rounded-md border-2 border-black"
+            >
+                <a href="/rooms" hx-boost="true">Join Room</a>
+            </button>
+        </div>
     }
-}
-
-templ ProfileInput() {
-    <form id="profile-input" hx-get="/profile" hx-swap="none">
-        <label for="name">Name</label>
-        <input id="name" name="name" placeholder="Name" type="text"></input>
-    </form>
-}
-
-templ SessionData(value string) {
-    <input id="session" type="hidden" 
-    if value != "" {
-        hx-swap-oob="true"
-    } hx-preserve="true" value={value}></input>
 }
 
 // CREDIT: shadcn-ui dialog
@@ -58,13 +61,23 @@ templ Modal(id string) {
 
 templ CreateRoomModal() {
     @Modal("create-room-modal") {
-        <form class="text-small text-gray-800" hx-post="/rooms/create">
+        <form class="text-small text-gray-800" hx-post="/rooms/create" hx-boost="true" hx-target="body">
             <label for="room-name">Room Name:</label>
             <input type="text" name="room-name" id="room-name" placeholder="Room Name" class="rounded-md border-2 border-black"></input>
             <label for="display-name">Display Name:</label>
             <input type="text" name="display-name" id="display-name" placeholder="Display Name" class="rounded-md border-2 border-black"></input>
             <button id="create" type="submit" class="rounded-md border-2 border-black">Create</button>
             <button type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto" hx-get="/ok" hx-swap="delete" hx-target="#create-room-modal">Cancel</button>
+        </form>
+    }
+}
+templ JoinRoomModal() {
+    @Modal("join-room-modal") {
+        <form class="text-small text-gray-800" ws-send>
+            <label for="display-name">Display Name:</label>
+            <input type="text" name="display-name" id="display-name" placeholder="Display Name" class="rounded-md border-2 border-black"></input>
+            <button id="create" type="submit" class="rounded-md border-2 border-black">Join</button>
+            <button type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto" hx-get="/ok" hx-swap="delete" hx-target="#join-room-modal">Cancel</button>
         </form>
     }
 }
@@ -89,25 +102,59 @@ templ GuestList(guests []string, append bool) {
         </ul>
 }
 
-templ RoomPage(room Room, newGuest bool) {
+templ RoomWS(roomid string, kind string) {
+    <div id="ws-connection" hx-ext="ws" ws-connect={RoomURL(roomid, kind + "/ws")}>
+        { children...}
+    </div>
+}
+
+templ RoomPageBody(room Room) {
+    <div id="room-page-body">
+    <h3>{room.Name}</h3>
+    <h2>Host:</h2>
+    <p id="host">{room.Host}</p>
+    <h2>Guests:</h2>
+    @GuestList(room.Guests, false)
+    </div>
+}
+
+templ RoomPage(room Room, kind string) {
     @Layout(room.Name) {
-        <div id="ws-connection" hx-ext="ws" ws-connect={"/rooms/ws?q="+room.Name }>
-            if newGuest {
-                @Modal("join-room-modal") {
-                    <form ws-send hx-get={"/rooms?q=" + room.Name} hx-push-url="true" hx-target="#ws-connection" hx-swap="innerHTML">
-                        <label for="display-name">Display Name:</label>
-                        <input type="text" name="display-name" id="display-name" placeholder="Display Name" class="rounded-md border-2 border-black"></input>
-                        <button id="join" type="submit" class="rounded-md border-2 border-black">Join</button>
-                    </form>
-                }
-            }
-            <h3>{room.Name}</h3>
-            <h2>Host:</h2>
-            <p id="host">{room.Host}</p>
-            <h2>Guests:</h2>
-            @GuestList(room.Guests, false)
-        </div>
+        @RoomWS(room.Name, kind) {
+            @RoomPageBody(room)
+        }
     }
+}
+
+templ JoinRoomPage(room Room) {
+    @Layout(room.Name) {
+        @RoomWS(room.Name, "guest") {
+            @JoinRoomModal()
+            @RoomPageBody(room)
+        }
+    }
+}
+
+templ CreateRoomPage() {
+    @Layout("Create Room") {
+        @CreateRoomModal()
+        @RoomPageBody(Room{})
+    }
+}
+
+templ HostRoomPage(room Room) {
+    @RoomWS(room.Name, "host") {
+        @RoomPageBody(room)
+    }
+}
+
+templ JoinRoomRedirect(roomid string) {
+        <div
+            id="url-push"
+            hx-get="/ok"
+            hx-push-url={RoomURL(roomid, "")}
+            hx-trigger="load"
+        ></div>
 }
 
 templ JoinRoomEntry(room Room) {
@@ -115,12 +162,10 @@ templ JoinRoomEntry(room Room) {
     <h2>Host:</h2>
     <p>{room.Host}</p>
     <h2>Guests: {fmt.Sprint(len(room.Guests))}</h2>
-    <button id="join-room" class="rounded-md border-2 border-black"><a href={templ.SafeURL("/rooms?q="+room.Name)} hx-boost="true">Join Room</a></button>
+    <button id="join-room" class="rounded-md border-2 border-black"><a href={templ.SafeURL(RoomURL(room.Name, "/join"))} hx-boost="true">Join Room</a></button>
 }
 
-    /* @SessionData("") */
-templ RoomsList(rooms []Room) {
-    @SessionData("")
+templ RoomList(rooms []Room) {
     <ul>
         for _, room := range rooms {
             <li id={room.Name}>
@@ -132,8 +177,8 @@ templ RoomsList(rooms []Room) {
 
 // TODO: use HX headers to differentiate between hx request vs normal fetch
 // to decide whether or not to render entire page or just roomslist
-templ JoinRoomPage(rooms []Room) {
+templ RoomListPage(rooms []Room) {
     @Layout("Join Room") {
-        @RoomsList(rooms)
+        @RoomList(rooms)
     }
 }
