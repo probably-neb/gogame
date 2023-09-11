@@ -80,7 +80,7 @@ func Layout(title string) templ.Component {
 }
 
 func RoomURL(id string, rest string) string {
-	if rest[0] != '/' {
+	if len(rest) > 0 && rest[0] != '/' {
 		rest = "/" + rest
 	}
 	return "/rooms/" + id + rest
@@ -373,6 +373,8 @@ func LobbyGuest(name string) templ.Component {
 	})
 }
 
+// TODO: add kind var for kick functionality
+
 func GuestList(guests []string, append bool) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
@@ -417,7 +419,7 @@ func GuestList(guests []string, append bool) templ.Component {
 	})
 }
 
-func RoomWS(roomid string, kind string) templ.Component {
+func GamesList(kind string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -430,7 +432,58 @@ func RoomWS(roomid string, kind string) templ.Component {
 			var_25 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, err = templBuffer.WriteString("<div id=\"ws-connection\" hx-ext=\"ws\" ws-connect=\"")
+		_, err = templBuffer.WriteString("<div><h3>")
+		if err != nil {
+			return err
+		}
+		var_26 := `Games`
+		_, err = templBuffer.WriteString(var_26)
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("</h3><ul><li>")
+		if err != nil {
+			return err
+		}
+		var_27 := `Tic-Tac-Toe `
+		_, err = templBuffer.WriteString(var_27)
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("<button>")
+		if err != nil {
+			return err
+		}
+		var_28 := `Start!`
+		_, err = templBuffer.WriteString(var_28)
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("</button></li></ul></div>")
+		if err != nil {
+			return err
+		}
+		if !templIsBuffer {
+			_, err = io.Copy(w, templBuffer)
+		}
+		return err
+	})
+}
+
+func RoomWS(roomid string, kind string) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
+		templBuffer, templIsBuffer := w.(*bytes.Buffer)
+		if !templIsBuffer {
+			templBuffer = templ.GetBuffer()
+			defer templ.ReleaseBuffer(templBuffer)
+		}
+		ctx = templ.InitializeContext(ctx)
+		var_29 := templ.GetChildren(ctx)
+		if var_29 == nil {
+			var_29 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		_, err = templBuffer.WriteString("<div id=\"ws-connection\" hx-preserve=\"true\" hx-ext=\"ws\" ws-connect=\"")
 		if err != nil {
 			return err
 		}
@@ -442,7 +495,7 @@ func RoomWS(roomid string, kind string) templ.Component {
 		if err != nil {
 			return err
 		}
-		err = var_25.Render(ctx, templBuffer)
+		err = var_29.Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
@@ -457,7 +510,7 @@ func RoomWS(roomid string, kind string) templ.Component {
 	})
 }
 
-func RoomPageBody(room HRoom) templ.Component {
+func RoomPageBody(room HRoom, kind string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -465,17 +518,17 @@ func RoomPageBody(room HRoom) templ.Component {
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_26 := templ.GetChildren(ctx)
-		if var_26 == nil {
-			var_26 = templ.NopComponent
+		var_30 := templ.GetChildren(ctx)
+		if var_30 == nil {
+			var_30 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		_, err = templBuffer.WriteString("<div id=\"room-page-body\"><h3>")
 		if err != nil {
 			return err
 		}
-		var var_27 string = room.Name
-		_, err = templBuffer.WriteString(templ.EscapeString(var_27))
+		var var_31 string = room.Name
+		_, err = templBuffer.WriteString(templ.EscapeString(var_31))
 		if err != nil {
 			return err
 		}
@@ -483,8 +536,8 @@ func RoomPageBody(room HRoom) templ.Component {
 		if err != nil {
 			return err
 		}
-		var_28 := `Host:`
-		_, err = templBuffer.WriteString(var_28)
+		var_32 := `Host:`
+		_, err = templBuffer.WriteString(var_32)
 		if err != nil {
 			return err
 		}
@@ -492,8 +545,8 @@ func RoomPageBody(room HRoom) templ.Component {
 		if err != nil {
 			return err
 		}
-		var var_29 string = room.Host
-		_, err = templBuffer.WriteString(templ.EscapeString(var_29))
+		var var_33 string = room.Host
+		_, err = templBuffer.WriteString(templ.EscapeString(var_33))
 		if err != nil {
 			return err
 		}
@@ -501,8 +554,8 @@ func RoomPageBody(room HRoom) templ.Component {
 		if err != nil {
 			return err
 		}
-		var_30 := `Guests:`
-		_, err = templBuffer.WriteString(var_30)
+		var_34 := `Guests:`
+		_, err = templBuffer.WriteString(var_34)
 		if err != nil {
 			return err
 		}
@@ -514,123 +567,11 @@ func RoomPageBody(room HRoom) templ.Component {
 		if err != nil {
 			return err
 		}
+		err = GamesList(kind).Render(ctx, templBuffer)
+		if err != nil {
+			return err
+		}
 		_, err = templBuffer.WriteString("</div>")
-		if err != nil {
-			return err
-		}
-		if !templIsBuffer {
-			_, err = io.Copy(w, templBuffer)
-		}
-		return err
-	})
-}
-
-func RoomPage(room HRoom, kind string) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
-		templBuffer, templIsBuffer := w.(*bytes.Buffer)
-		if !templIsBuffer {
-			templBuffer = templ.GetBuffer()
-			defer templ.ReleaseBuffer(templBuffer)
-		}
-		ctx = templ.InitializeContext(ctx)
-		var_31 := templ.GetChildren(ctx)
-		if var_31 == nil {
-			var_31 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		var_32 := templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
-			templBuffer, templIsBuffer := w.(*bytes.Buffer)
-			if !templIsBuffer {
-				templBuffer = templ.GetBuffer()
-				defer templ.ReleaseBuffer(templBuffer)
-			}
-			var_33 := templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
-				templBuffer, templIsBuffer := w.(*bytes.Buffer)
-				if !templIsBuffer {
-					templBuffer = templ.GetBuffer()
-					defer templ.ReleaseBuffer(templBuffer)
-				}
-				err = RoomPageBody(room).Render(ctx, templBuffer)
-				if err != nil {
-					return err
-				}
-				if !templIsBuffer {
-					_, err = io.Copy(w, templBuffer)
-				}
-				return err
-			})
-			err = RoomWS(room.Name, kind).Render(templ.WithChildren(ctx, var_33), templBuffer)
-			if err != nil {
-				return err
-			}
-			if !templIsBuffer {
-				_, err = io.Copy(w, templBuffer)
-			}
-			return err
-		})
-		err = Layout(room.Name).Render(templ.WithChildren(ctx, var_32), templBuffer)
-		if err != nil {
-			return err
-		}
-		if !templIsBuffer {
-			_, err = io.Copy(w, templBuffer)
-		}
-		return err
-	})
-}
-
-func JoinRoomPage(room HRoom) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
-		templBuffer, templIsBuffer := w.(*bytes.Buffer)
-		if !templIsBuffer {
-			templBuffer = templ.GetBuffer()
-			defer templ.ReleaseBuffer(templBuffer)
-		}
-		ctx = templ.InitializeContext(ctx)
-		var_34 := templ.GetChildren(ctx)
-		if var_34 == nil {
-			var_34 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		var_35 := templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
-			templBuffer, templIsBuffer := w.(*bytes.Buffer)
-			if !templIsBuffer {
-				templBuffer = templ.GetBuffer()
-				defer templ.ReleaseBuffer(templBuffer)
-			}
-			var_36 := templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
-				templBuffer, templIsBuffer := w.(*bytes.Buffer)
-				if !templIsBuffer {
-					templBuffer = templ.GetBuffer()
-					defer templ.ReleaseBuffer(templBuffer)
-				}
-				err = JoinRoomModal().Render(ctx, templBuffer)
-				if err != nil {
-					return err
-				}
-				_, err = templBuffer.WriteString(" ")
-				if err != nil {
-					return err
-				}
-				err = RoomPageBody(room).Render(ctx, templBuffer)
-				if err != nil {
-					return err
-				}
-				if !templIsBuffer {
-					_, err = io.Copy(w, templBuffer)
-				}
-				return err
-			})
-			err = RoomWS(room.Name, "guest").Render(templ.WithChildren(ctx, var_36), templBuffer)
-			if err != nil {
-				return err
-			}
-			if !templIsBuffer {
-				_, err = io.Copy(w, templBuffer)
-			}
-			return err
-		})
-		err = Layout(room.Name).Render(templ.WithChildren(ctx, var_35), templBuffer)
 		if err != nil {
 			return err
 		}
@@ -649,12 +590,12 @@ func CreateRoomPage() templ.Component {
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_37 := templ.GetChildren(ctx)
-		if var_37 == nil {
-			var_37 = templ.NopComponent
+		var_35 := templ.GetChildren(ctx)
+		if var_35 == nil {
+			var_35 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var_38 := templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
+		var_36 := templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 			templBuffer, templIsBuffer := w.(*bytes.Buffer)
 			if !templIsBuffer {
 				templBuffer = templ.GetBuffer()
@@ -668,7 +609,7 @@ func CreateRoomPage() templ.Component {
 			if err != nil {
 				return err
 			}
-			err = RoomPageBody(HRoom{}).Render(ctx, templBuffer)
+			err = RoomPageBody(HRoom{}, "host").Render(ctx, templBuffer)
 			if err != nil {
 				return err
 			}
@@ -677,7 +618,108 @@ func CreateRoomPage() templ.Component {
 			}
 			return err
 		})
-		err = Layout("Create Room").Render(templ.WithChildren(ctx, var_38), templBuffer)
+		err = Layout("Create Room").Render(templ.WithChildren(ctx, var_36), templBuffer)
+		if err != nil {
+			return err
+		}
+		if !templIsBuffer {
+			_, err = io.Copy(w, templBuffer)
+		}
+		return err
+	})
+}
+
+func GuestRoomPage(room HRoom) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
+		templBuffer, templIsBuffer := w.(*bytes.Buffer)
+		if !templIsBuffer {
+			templBuffer = templ.GetBuffer()
+			defer templ.ReleaseBuffer(templBuffer)
+		}
+		ctx = templ.InitializeContext(ctx)
+		var_37 := templ.GetChildren(ctx)
+		if var_37 == nil {
+			var_37 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		var_38 := templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
+			templBuffer, templIsBuffer := w.(*bytes.Buffer)
+			if !templIsBuffer {
+				templBuffer = templ.GetBuffer()
+				defer templ.ReleaseBuffer(templBuffer)
+			}
+			var_39 := templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
+				templBuffer, templIsBuffer := w.(*bytes.Buffer)
+				if !templIsBuffer {
+					templBuffer = templ.GetBuffer()
+					defer templ.ReleaseBuffer(templBuffer)
+				}
+				err = var_37.Render(ctx, templBuffer)
+				if err != nil {
+					return err
+				}
+				_, err = templBuffer.WriteString(" ")
+				if err != nil {
+					return err
+				}
+				err = RoomPageBody(room, "guest").Render(ctx, templBuffer)
+				if err != nil {
+					return err
+				}
+				if !templIsBuffer {
+					_, err = io.Copy(w, templBuffer)
+				}
+				return err
+			})
+			err = RoomWS(room.Name, "guest").Render(templ.WithChildren(ctx, var_39), templBuffer)
+			if err != nil {
+				return err
+			}
+			if !templIsBuffer {
+				_, err = io.Copy(w, templBuffer)
+			}
+			return err
+		})
+		err = Layout(room.Name).Render(templ.WithChildren(ctx, var_38), templBuffer)
+		if err != nil {
+			return err
+		}
+		if !templIsBuffer {
+			_, err = io.Copy(w, templBuffer)
+		}
+		return err
+	})
+}
+
+func JoinRoomPage(room HRoom) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
+		templBuffer, templIsBuffer := w.(*bytes.Buffer)
+		if !templIsBuffer {
+			templBuffer = templ.GetBuffer()
+			defer templ.ReleaseBuffer(templBuffer)
+		}
+		ctx = templ.InitializeContext(ctx)
+		var_40 := templ.GetChildren(ctx)
+		if var_40 == nil {
+			var_40 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		var_41 := templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
+			templBuffer, templIsBuffer := w.(*bytes.Buffer)
+			if !templIsBuffer {
+				templBuffer = templ.GetBuffer()
+				defer templ.ReleaseBuffer(templBuffer)
+			}
+			err = JoinRoomModal().Render(ctx, templBuffer)
+			if err != nil {
+				return err
+			}
+			if !templIsBuffer {
+				_, err = io.Copy(w, templBuffer)
+			}
+			return err
+		})
+		err = GuestRoomPage(room).Render(templ.WithChildren(ctx, var_41), templBuffer)
 		if err != nil {
 			return err
 		}
@@ -696,24 +738,24 @@ func HostRoomPage(room HRoom) templ.Component {
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_39 := templ.GetChildren(ctx)
-		if var_39 == nil {
-			var_39 = templ.NopComponent
+		var_42 := templ.GetChildren(ctx)
+		if var_42 == nil {
+			var_42 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var_40 := templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
+		var_43 := templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 			templBuffer, templIsBuffer := w.(*bytes.Buffer)
 			if !templIsBuffer {
 				templBuffer = templ.GetBuffer()
 				defer templ.ReleaseBuffer(templBuffer)
 			}
-			var_41 := templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
+			var_44 := templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 				templBuffer, templIsBuffer := w.(*bytes.Buffer)
 				if !templIsBuffer {
 					templBuffer = templ.GetBuffer()
 					defer templ.ReleaseBuffer(templBuffer)
 				}
-				err = RoomPageBody(room).Render(ctx, templBuffer)
+				err = RoomPageBody(room, "host").Render(ctx, templBuffer)
 				if err != nil {
 					return err
 				}
@@ -722,7 +764,7 @@ func HostRoomPage(room HRoom) templ.Component {
 				}
 				return err
 			})
-			err = RoomWS(room.Name, "host").Render(templ.WithChildren(ctx, var_41), templBuffer)
+			err = RoomWS(room.Name, "host").Render(templ.WithChildren(ctx, var_44), templBuffer)
 			if err != nil {
 				return err
 			}
@@ -731,7 +773,7 @@ func HostRoomPage(room HRoom) templ.Component {
 			}
 			return err
 		})
-		err = Layout(room.Name).Render(templ.WithChildren(ctx, var_40), templBuffer)
+		err = Layout(room.Name).Render(templ.WithChildren(ctx, var_43), templBuffer)
 		if err != nil {
 			return err
 		}
@@ -742,7 +784,7 @@ func HostRoomPage(room HRoom) templ.Component {
 	})
 }
 
-func JoinRoomRedirect(roomid string) templ.Component {
+func JoinRoomRedirect(room HRoom) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -750,20 +792,20 @@ func JoinRoomRedirect(roomid string) templ.Component {
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_42 := templ.GetChildren(ctx)
-		if var_42 == nil {
-			var_42 = templ.NopComponent
+		var_45 := templ.GetChildren(ctx)
+		if var_45 == nil {
+			var_45 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, err = templBuffer.WriteString("<div id=\"url-push\" hx-get=\"/ok\" hx-push-url=\"")
+		_, err = templBuffer.WriteString("<div id=\"body\" hx-swap-oob=\"beforeend\"><div hx-get=\"/ok\" hx-replace-url=\"")
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString(templ.EscapeString(RoomURL(roomid, "")))
+		_, err = templBuffer.WriteString(templ.EscapeString(RoomURL(room.Name, "")))
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("\" hx-trigger=\"load\"></div>")
+		_, err = templBuffer.WriteString("\" hx-swap=\"none\" hx-trigger=\"load\"></div></div>")
 		if err != nil {
 			return err
 		}
@@ -782,17 +824,17 @@ func JoinRoomEntry(room HRoom) templ.Component {
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_43 := templ.GetChildren(ctx)
-		if var_43 == nil {
-			var_43 = templ.NopComponent
+		var_46 := templ.GetChildren(ctx)
+		if var_46 == nil {
+			var_46 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		_, err = templBuffer.WriteString("<h3>")
 		if err != nil {
 			return err
 		}
-		var var_44 string = room.Name
-		_, err = templBuffer.WriteString(templ.EscapeString(var_44))
+		var var_47 string = room.Name
+		_, err = templBuffer.WriteString(templ.EscapeString(var_47))
 		if err != nil {
 			return err
 		}
@@ -800,8 +842,8 @@ func JoinRoomEntry(room HRoom) templ.Component {
 		if err != nil {
 			return err
 		}
-		var_45 := `Host:`
-		_, err = templBuffer.WriteString(var_45)
+		var_48 := `Host:`
+		_, err = templBuffer.WriteString(var_48)
 		if err != nil {
 			return err
 		}
@@ -809,8 +851,8 @@ func JoinRoomEntry(room HRoom) templ.Component {
 		if err != nil {
 			return err
 		}
-		var var_46 string = room.Host
-		_, err = templBuffer.WriteString(templ.EscapeString(var_46))
+		var var_49 string = room.Host
+		_, err = templBuffer.WriteString(templ.EscapeString(var_49))
 		if err != nil {
 			return err
 		}
@@ -818,13 +860,13 @@ func JoinRoomEntry(room HRoom) templ.Component {
 		if err != nil {
 			return err
 		}
-		var_47 := `Guests: `
-		_, err = templBuffer.WriteString(var_47)
+		var_50 := `Guests: `
+		_, err = templBuffer.WriteString(var_50)
 		if err != nil {
 			return err
 		}
-		var var_48 string = fmt.Sprint(len(room.Guests))
-		_, err = templBuffer.WriteString(templ.EscapeString(var_48))
+		var var_51 string = fmt.Sprint(len(room.Guests))
+		_, err = templBuffer.WriteString(templ.EscapeString(var_51))
 		if err != nil {
 			return err
 		}
@@ -832,8 +874,8 @@ func JoinRoomEntry(room HRoom) templ.Component {
 		if err != nil {
 			return err
 		}
-		var var_49 templ.SafeURL = templ.SafeURL(RoomURL(room.Name, "/join"))
-		_, err = templBuffer.WriteString(templ.EscapeString(string(var_49)))
+		var var_52 templ.SafeURL = templ.SafeURL(RoomURL(room.Name, "/join"))
+		_, err = templBuffer.WriteString(templ.EscapeString(string(var_52)))
 		if err != nil {
 			return err
 		}
@@ -841,8 +883,8 @@ func JoinRoomEntry(room HRoom) templ.Component {
 		if err != nil {
 			return err
 		}
-		var_50 := `Join Room`
-		_, err = templBuffer.WriteString(var_50)
+		var_53 := `Join Room`
+		_, err = templBuffer.WriteString(var_53)
 		if err != nil {
 			return err
 		}
@@ -865,9 +907,9 @@ func RoomList(rooms []HRoom) templ.Component {
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_51 := templ.GetChildren(ctx)
-		if var_51 == nil {
-			var_51 = templ.NopComponent
+		var_54 := templ.GetChildren(ctx)
+		if var_54 == nil {
+			var_54 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		_, err = templBuffer.WriteString("<ul>")
@@ -918,12 +960,12 @@ func RoomListPage(rooms []HRoom) templ.Component {
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_52 := templ.GetChildren(ctx)
-		if var_52 == nil {
-			var_52 = templ.NopComponent
+		var_55 := templ.GetChildren(ctx)
+		if var_55 == nil {
+			var_55 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var_53 := templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
+		var_56 := templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 			templBuffer, templIsBuffer := w.(*bytes.Buffer)
 			if !templIsBuffer {
 				templBuffer = templ.GetBuffer()
@@ -938,7 +980,7 @@ func RoomListPage(rooms []HRoom) templ.Component {
 			}
 			return err
 		})
-		err = Layout("Join Room").Render(templ.WithChildren(ctx, var_53), templBuffer)
+		err = Layout("Join Room").Render(templ.WithChildren(ctx, var_56), templBuffer)
 		if err != nil {
 			return err
 		}

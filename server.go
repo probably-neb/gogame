@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"gogame/htmx"
+	"gogame/utils"
 	"log"
 	"net/http"
 	"time"
@@ -127,33 +128,54 @@ func (r *Room) ConnectGuest(conn *websocket.Conn) error {
 	for {
 		_, p, err = conn.ReadMessage()
 		if err != nil {
-			return err
+			log.Println(err)
+            return
 		}
 		break
 	}
 	var msg GuestJoinMsg
 	if err = json.Unmarshal(p, &msg); err != nil {
-		return err
+        log.Println(err)
+        return
 	}
 	log.Println(msg)
 	guest := Player{Conn: conn, DisplayName: msg.DisplayName}
 	r.guests = append(r.guests, guest)
-	conn.WriteMessage(websocket.TextMessage, []byte(`<div id="join-room-modal"></div>`))
-
-	newGuestNameList := []string{guest.DisplayName}
-	newGuestList := GuestList(newGuestNameList, true)
-	err = ConnWriteTemplate(r.host.Conn, newGuestList)
+    // close join modal
+    conn.WriteMessage(websocket.TextMessage, []byte(`<div id="join-room-modal"></div>`))
+    // update url
+    rhtml := r.toHTMLRoom()
+    err = utils.ConnWriteTemplate(conn, JoinRoomRedirect(rhtml))
 	if err != nil {
-		return err
+        log.Println(err)
+        return
+	}
+    // update room body
+    err = utils.ConnWriteTemplate(conn, RoomPageBody(rhtml, "guest"))
+	if err != nil {
+        log.Println(err)
+        return
+	}
+
+    // TODO: update all connections with new guest
+	newGuestNameList := []string{guest.DisplayName}
+    appendGuestList := true
+	newGuestList := GuestList(newGuestNameList, appendGuestList)
+	err = utils.ConnWriteTemplate(r.host.Conn, newGuestList)
+	if err != nil {
+        log.Println(err)
+        return
 	}
 	for _, g := range r.guests {
-		err = ConnWriteTemplate(g.Conn, newGuestList)
+        if g.DisplayName != guest.DisplayName {
+            continue
+        }
+		err = utils.ConnWriteTemplate(g.Conn, newGuestList)
 		if err != nil {
-			return err
+            log.Println(err)
 		}
 	}
 	go r.ListenForGuestMessages(guest)
-	return nil
 }
 
 func createRoomHandler(w http.ResponseWriter, r *http.Request) {

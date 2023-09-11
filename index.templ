@@ -24,7 +24,7 @@ templ Layout(title string) {
 }
 
 func RoomURL(id string, rest string) string {
-    if rest[0] != '/' {
+    if len(rest) > 0 && rest[0] != '/' {
         rest = "/" + rest
     }
     return "/rooms/" + id + rest
@@ -92,6 +92,7 @@ templ LobbyGuest(name string) {
     <li id={name}>{name}</li>
 }
 
+// TODO: add kind var for kick functionality
 templ GuestList(guests []string, append bool) {
         <ul id="players" if append {
             hx-swap-oob="beforeend"
@@ -102,61 +103,78 @@ templ GuestList(guests []string, append bool) {
         </ul>
 }
 
+templ GamesList(kind string) {
+    <div>
+        <h3>Games</h3>
+        <ul>
+            <li>Tic-Tac-Toe <button>Start!</button></li>
+        </ul>
+    </div>
+}
+
 templ RoomWS(roomid string, kind string) {
-    <div id="ws-connection" hx-ext="ws" ws-connect={RoomURL(roomid, kind + "/ws")}>
+    <div id="ws-connection" hx-preserve="true" hx-ext="ws" ws-connect={RoomURL(roomid, kind + "/ws")} >
         { children...}
     </div>
 }
 
-templ RoomPageBody(room HRoom) {
+templ RoomPageBody(room HRoom, kind string) {
     <div id="room-page-body">
-    <h3>{room.Name}</h3>
-    <h2>Host:</h2>
-    <p id="host">{room.Host}</p>
-    <h2>Guests:</h2>
-    @GuestList(room.Guests, false)
+        <h3>{room.Name}</h3>
+        <h2>Host:</h2>
+        <p id="host">{room.Host}</p>
+        <h2>Guests:</h2>
+        @GuestList(room.Guests, false)
+        @GamesList(kind)
     </div>
-}
-
-templ RoomPage(room HRoom, kind string) {
-    @Layout(room.Name) {
-        @RoomWS(room.Name, kind) {
-            @RoomPageBody(room)
-        }
-    }
-}
-
-templ JoinRoomPage(room HRoom) {
-    @Layout(room.Name) {
-        @RoomWS(room.Name, "guest") {
-            @JoinRoomModal()
-            @RoomPageBody(room)
-        }
-    }
 }
 
 templ CreateRoomPage() {
     @Layout("Create Room") {
         @CreateRoomModal()
-        @RoomPageBody(HRoom{})
+        @RoomPageBody(HRoom{}, "host")
     }
 }
 
-templ HostRoomPage(room HRoom) {
+
+templ GuestRoomPage(room HRoom) {
     @Layout(room.Name) {
-        @RoomWS(room.Name, "host") {
-            @RoomPageBody(room)
+        @RoomWS(room.Name, "guest") {
+            { children...}
+            @RoomPageBody(room, "guest")
         }
     }
 }
 
-templ JoinRoomRedirect(roomid string) {
+templ JoinRoomPage(room HRoom) {
+    @GuestRoomPage(room) {
+        @JoinRoomModal()
+    }
+}
+
+
+
+templ HostRoomPage(room HRoom) {
+    @Layout(room.Name) {
+        @RoomWS(room.Name, "host") {
+            @RoomPageBody(room, "host")
+        }
+    }
+}
+
+templ JoinRoomRedirect(room HRoom) {
         <div
-            id="url-push"
-            hx-get="/ok"
-            hx-push-url={RoomURL(roomid, "")}
-            hx-trigger="load"
-        ></div>
+            id="body"
+            hx-swap-oob="beforeend"
+        >
+            <div
+                hx-get="/ok"
+                hx-replace-url={RoomURL(room.Name,"")}
+                hx-swap="none"
+                hx-trigger="load"
+            >
+            </div>
+        </div>
 }
 
 templ JoinRoomEntry(room HRoom) {
