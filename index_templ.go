@@ -288,7 +288,7 @@ func JoinRoomModal() templ.Component {
 			if err != nil {
 				return err
 			}
-			_, err = templBuffer.WriteString("</label><input type=\"text\" name=\"display-name\" id=\"display-name\" placeholder=\"Display Name\" class=\"rounded-md border-2 border-black\"><button id=\"create\" type=\"submit\" class=\"rounded-md border-2 border-black\">")
+			_, err = templBuffer.WriteString("</label><input type=\"text\" name=\"display-name\" id=\"display-name\" placeholder=\"Display Name\" class=\"rounded-md border-2 border-black\"><button id=\"join\" type=\"submit\" class=\"rounded-md border-2 border-black\">")
 			if err != nil {
 				return err
 			}
