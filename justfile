@@ -4,7 +4,7 @@ build:
     ./gogame
 
 watch:
-    ./browser-sync.js
+    ls **.templ **.go | entr -rc just build
 
 test:
     pnpx mocha --exit
