@@ -1,20 +1,15 @@
 package tictactoe
 
 import (
-    "net/http"
-    "github.com/a-h/templ"
-	"github.com/gorilla/websocket"
-    "log"
-    "encoding/json"
+	"context"
+	"encoding/json"
+	"log"
+	"net/http"
     "gogame/htmx"
-    "context"
+	"github.com/a-h/templ"
+	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 )
-
-var upgrader = websocket.Upgrader {
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin:     func(r *http.Request) bool { return true },
-}
 
 type Symbol rune
 
@@ -23,15 +18,16 @@ type Move struct {
     symbol Symbol
 }
 
-type Player struct {
+type TTTPlayer struct {
     symbol Symbol
     conn *websocket.Conn
 }
 
-type Game struct {
+type TicTacToe struct {
     host Player
     guest Player
-    started bool
+    hostSym Symbol
+    guestSym Symbol
 }
 
 func (g *Game) Start(host *websocket.Conn) {
@@ -40,15 +36,6 @@ func (g *Game) Start(host *websocket.Conn) {
     g.guest.conn = nil
     g.guest.symbol = 'o'
     g.started = true
-}
-
-
-func (g *Game) Join(guest *websocket.Conn) {
-    // TODO: check if game is started & !full
-    g.guest.conn = guest
-    if g.guest.conn == g.host.conn {
-        log.Println("same connection")
-    }
 }
 
 func (g *Game) Run() {
@@ -110,10 +97,10 @@ func sendMove(move Move, conn *websocket.Conn) {
 
 
 type TTTRequest struct {
-    Headers htmx.HXHeaders `json:"HEADERS"`
+    Headers htmx.Headers `json:"HEADERS"`
 }
 
-func AddHandlers() {
+func AddHandlers(r *mux.Router) {
     http.Handle("/games/tictactoe", templ.Handler(Page()))
     var game = Game{started: false}
     http.HandleFunc("/games/tictactoe/ws", func(w http.ResponseWriter, r *http.Request) {

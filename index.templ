@@ -1,4 +1,4 @@
-package html
+package main
 
 import "fmt"
 
@@ -82,7 +82,7 @@ templ JoinRoomModal() {
     }
 }
 
-type Room struct {
+type HRoom struct {
     Name string
     Host string
     Guests []string
@@ -108,7 +108,7 @@ templ RoomWS(roomid string, kind string) {
     </div>
 }
 
-templ RoomPageBody(room Room) {
+templ RoomPageBody(room HRoom) {
     <div id="room-page-body">
     <h3>{room.Name}</h3>
     <h2>Host:</h2>
@@ -118,7 +118,7 @@ templ RoomPageBody(room Room) {
     </div>
 }
 
-templ RoomPage(room Room, kind string) {
+templ RoomPage(room HRoom, kind string) {
     @Layout(room.Name) {
         @RoomWS(room.Name, kind) {
             @RoomPageBody(room)
@@ -126,7 +126,7 @@ templ RoomPage(room Room, kind string) {
     }
 }
 
-templ JoinRoomPage(room Room) {
+templ JoinRoomPage(room HRoom) {
     @Layout(room.Name) {
         @RoomWS(room.Name, "guest") {
             @JoinRoomModal()
@@ -138,13 +138,15 @@ templ JoinRoomPage(room Room) {
 templ CreateRoomPage() {
     @Layout("Create Room") {
         @CreateRoomModal()
-        @RoomPageBody(Room{})
+        @RoomPageBody(HRoom{})
     }
 }
 
-templ HostRoomPage(room Room) {
-    @RoomWS(room.Name, "host") {
-        @RoomPageBody(room)
+templ HostRoomPage(room HRoom) {
+    @Layout(room.Name) {
+        @RoomWS(room.Name, "host") {
+            @RoomPageBody(room)
+        }
     }
 }
 
@@ -157,7 +159,7 @@ templ JoinRoomRedirect(roomid string) {
         ></div>
 }
 
-templ JoinRoomEntry(room Room) {
+templ JoinRoomEntry(room HRoom) {
     <h3>{room.Name}</h3>
     <h2>Host:</h2>
     <p>{room.Host}</p>
@@ -165,7 +167,7 @@ templ JoinRoomEntry(room Room) {
     <button id="join-room" class="rounded-md border-2 border-black"><a href={templ.SafeURL(RoomURL(room.Name, "/join"))} hx-boost="true">Join Room</a></button>
 }
 
-templ RoomList(rooms []Room) {
+templ RoomList(rooms []HRoom) {
     <ul>
         for _, room := range rooms {
             <li id={room.Name}>
@@ -177,7 +179,7 @@ templ RoomList(rooms []Room) {
 
 // TODO: use HX headers to differentiate between hx request vs normal fetch
 // to decide whether or not to render entire page or just roomslist
-templ RoomListPage(rooms []Room) {
+templ RoomListPage(rooms []HRoom) {
     @Layout("Join Room") {
         @RoomList(rooms)
     }

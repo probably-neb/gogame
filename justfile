@@ -1,6 +1,7 @@
 build:
     templ generate
-    go run server.go
+    go build
+    ./gogame
 
 watch:
     ./browser-sync.js
