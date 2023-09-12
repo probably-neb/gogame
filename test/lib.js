@@ -37,6 +37,9 @@ export const E = {
         name: "h3",
         players: "#players",
         host: "#host",
+        play: {
+            tic_tac_toe: "#start-tic-tac-toe",
+        }
     },
 };
 export async function openPage(browser) {
@@ -89,6 +92,20 @@ export async function joinRoom(browser, name, displayName) {
         let modal = await page.$(E.join_room.modal.id);
         return !modal || (await textContent(modal)) == "";
     });
+}
+
+export async function createAndJoin(browser, roomName = "room", hostName = "host", guestName = "guest") {
+    let hostPage = await createRoom(browser, roomName, hostName);
+    let guestPage = await joinRoom(browser, roomName, guestName);
+    return [hostPage, guestPage];
+}
+
+export async function chooseGame(page, game) {
+    let startGame = await page.$(game);
+    // if not probably not passed host page
+    let errMsg = "cannot find button to start game: " + game.replace("start-", "") + " Are you sure this player is the host?";
+    expect(startGame,errMsg).to.exist;
+    await startGame.click();
 }
 
 export async function textContent(p, e) {
