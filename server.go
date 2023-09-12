@@ -1,20 +1,13 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
-	"errors"
 	"github.com/a-h/templ"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"gogame/htmx"
-	"gogame/utils"
 	"log"
 	"net/http"
 	"time"
 )
-
-var rooms = make(map[string]*Room)
 
 const MAX_GUESTS = 5
 
@@ -25,262 +18,48 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-func ConnWriteTemplate(conn *websocket.Conn, t templ.Component) error {
-	if conn == nil {
-		log.Print("connection is nil, trying to send component")
-		t.Render(context.TODO(), log.Writer())
-		log.Writer().Write([]byte("\n"))
-		return nil
-	}
-	w, err := conn.NextWriter(websocket.TextMessage)
-	if err != nil {
-		return err
-	}
-	t.Render(context.TODO(), w)
-	err = w.Close()
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-type Player struct {
-	Conn        *websocket.Conn
-	DisplayName string
-}
-
-type Room struct {
-	name   string
-	host   Player
-	guests []Player
-}
-
-func (r *Room) toHTMLRoom() HRoom {
-	players := make([]string, len(r.guests))
-	for i, guest := range r.guests {
-		players[i] = guest.DisplayName
-	}
-	return HRoom{Name: r.name, Host: r.host.DisplayName, Guests: players}
-}
-
-func (r *Room) Start() {
-	go r.ListenForHostMessages()
-	for _, g := range r.guests {
-		go r.ListenForGuestMessages(g)
-	}
-}
-
-func (r *Room) ListenForHostMessages() {
-	for {
-		_, p, err := r.host.Conn.ReadMessage()
-		if err != nil {
-			r.DisconnectHost(err)
-			return
-		}
-		log.Println(string(p))
-	}
-}
-
-func (r *Room) ListenForGuestMessages(g Player) {
-	for {
-		_, p, err := g.Conn.ReadMessage()
-		if err != nil {
-			r.DisconnectGuest(g, err)
-			return
-		}
-		log.Println(string(p))
-	}
-}
-
-func (r *Room) DisconnectHost(err error) {
-	r.host.Conn.Close()
-	if err != nil {
-		log.Println(err, "disconnecting host", r.host.DisplayName)
-	} else {
-		log.Println("disconnecting host", r.host.DisplayName)
-	}
-	// TODO: redirect players to lobby
-}
-
-func (r *Room) DisconnectGuest(g Player, err error) {
-	g.Conn.Close()
-	if err != nil {
-		log.Println(err, "disconnecting", g.DisplayName)
-	} else {
-		log.Println("disconnecting", g.DisplayName)
-	}
-	// TODO: remove guest from guests
-}
-
-func (r *Room) ConnectGuest(conn *websocket.Conn) error {
-	type GuestJoinMsg struct {
-		Headers     htmx.Headers `json:"HEADERS"`
-		DisplayName string       `json:"display-name"`
-	}
-	var err error = nil
-	defer func() {
-		// TODO: remove new guest from list if already added
-		if err != nil {
-			conn.Close()
-		}
-	}()
-	var p []byte
-	for {
-		_, p, err = conn.ReadMessage()
-		if err != nil {
-			log.Println(err)
-            return
-		}
-		break
-	}
-	var msg GuestJoinMsg
-	if err = json.Unmarshal(p, &msg); err != nil {
-        log.Println(err)
-        return
-	}
-	log.Println(msg)
-	guest := Player{Conn: conn, DisplayName: msg.DisplayName}
-	r.guests = append(r.guests, guest)
-    // close join modal
-    conn.WriteMessage(websocket.TextMessage, []byte(`<div id="join-room-modal"></div>`))
-    // update url
-    rhtml := r.toHTMLRoom()
-    err = utils.ConnWriteTemplate(conn, JoinRoomRedirect(rhtml))
-	if err != nil {
-        log.Println(err)
-        return
-	}
-    // update room body
-    err = utils.ConnWriteTemplate(conn, RoomPageBody(rhtml, "guest"))
-	if err != nil {
-        log.Println(err)
-        return
-	}
-
-    // TODO: update all connections with new guest
-	newGuestNameList := []string{guest.DisplayName}
-    appendGuestList := true
-	newGuestList := GuestList(newGuestNameList, appendGuestList)
-	err = utils.ConnWriteTemplate(r.host.Conn, newGuestList)
-	if err != nil {
-        log.Println(err)
-        return
-	}
-	for _, g := range r.guests {
-        if g.DisplayName != guest.DisplayName {
-            continue
-        }
-		err = utils.ConnWriteTemplate(g.Conn, newGuestList)
-		if err != nil {
-            log.Println(err)
-		}
-	}
-	go r.ListenForGuestMessages(guest)
-}
-
-func createRoomHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		CreateRoomPage().Render(r.Context(), w)
-		break
-	case http.MethodPost:
-		roomName := r.FormValue("room-name")
-		hostName := r.FormValue("display-name")
-		// TODO: form validation
-		if rooms[roomName] != nil {
-			http.Error(w, "Room Already Created!", http.StatusForbidden)
-		}
-		room := Room{name: roomName, host: Player{DisplayName: hostName}}
-		rooms[roomName] = &room
-		w.Header().Set("HX-Replace-Url", "/rooms/"+roomName)
-		HostRoomPage(room.toHTMLRoom()).Render(r.Context(), w)
-		// TODO: MethodDELETE
-	}
-}
-
 func joinRoomHandler(w http.ResponseWriter, r *http.Request) {
-	roomid := mux.Vars(r)["roomid"]
-	room := rooms[roomid]
-	if room == nil {
-		log.Println("access to room", roomid, "which does not exist")
-		http.Error(w, "room does not exist", http.StatusBadRequest)
-		return
-	}
-	JoinRoomPage(room.toHTMLRoom()).Render(r.Context(), w)
+    // TODO:
 }
 
 func guestWSHandler(room *Room, conn *websocket.Conn, w http.ResponseWriter, r *http.Request) {
-	if len(room.guests) == MAX_GUESTS {
-		// TODO: redirect to lobby and show error
-		log.Println("room is full")
-		http.Error(w, "room is full", http.StatusForbidden)
-	}
-	log.Println("websocket connection established to new guest in room:", room.name)
-	go room.ConnectGuest(conn)
+    // TODO:
 }
 
 func hostWSHandler(room *Room, conn *websocket.Conn, w http.ResponseWriter, r *http.Request) {
-	if room.host.Conn != nil {
-		http.Error(w, "host already connected", http.StatusForbidden)
-	}
-	room.host.Conn = conn
-	go room.Start()
+    // TODO:
 }
+
+func createRoomHandler(rr RoomRegistry, w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		CreateRoomPage().Render(r.Context(), w)
+	case http.MethodPost:
+        hostName := r.FormValue("display-name")
+        roomId := r.FormValue("room-name")
+        if rr.RoomExists(roomId) {
+            log.Println("error: attempt to create room that already exists:", roomId)
+            http.Error(w, "Room already exists", http.StatusBadRequest)
+            return
+        }
+        room := NewRoom{Name: roomId, HostName: hostName}
+        rr.Register<- room
+		w.Header().Set("HX-Replace-Url", "/rooms/"+roomId)
+        HostRoomPage(room.toHTMLRoom()).Render(r.Context(), w)
+        log.Println("created room:", roomId)
+    // TODO: MethodDELETE
+	}
+}
+
 
 func wsHandler(w http.ResponseWriter, r *http.Request) {
-	room_name := mux.Vars(r)["roomid"]
+    // TODO:
 
 	// TODO: redirect to home in case of error
-	if room_name == "" {
-		log.Println("no room name specified for websocket connection")
-		http.Error(w, "no room name specified for websocket connection", http.StatusBadRequest)
-		return
-	}
-	room := rooms[room_name]
-	if room == nil {
-		log.Println("room", room_name, "does not exist")
-		http.Error(w, "room does not exist", http.StatusBadRequest)
-		return
-	}
-	// no errors: ok to upgrade connection
-	conn, err := upgrader.Upgrade(w, r, nil)
-	defer func() {
-		if err == nil {
-			return
-		}
-		log.Println(err)
-		if conn != nil {
-			conn.Close()
-		}
-	}()
-	if err != nil {
-		return
-	}
-	kind := mux.Vars(r)["kind"]
-	switch kind {
-	case "host":
-		hostWSHandler(room, conn, w, r)
-		break
-	case "guest":
-		guestWSHandler(room, conn, w, r)
-		break
-	default:
-		err = errors.New("invalid websocket kind")
-		http.Error(w, "invalid websocket kind", http.StatusBadRequest)
-	}
 }
 
-func roomBrowserHandler(w http.ResponseWriter, r *http.Request) {
-	var roomInfos = make([]HRoom, len(rooms))
-	i := 0
-	for _, room := range rooms {
-		if room.name == "" {
-			continue
-		}
-		// TODO: add player names once they are collected
-		roomInfos[i] = room.toHTMLRoom()
-		i++
-	}
+func roomBrowserHandler(rr RoomRegistry, w http.ResponseWriter, r *http.Request) {
+    roomInfos := rr.GetHTMLRooms()
 	// in case of hx-boost don't render (and send!) the whole page
 	if r.Header.Get("HX-Request") == "true" {
 		RoomList(roomInfos).Render(r.Context(), w)
@@ -289,13 +68,27 @@ func roomBrowserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func loggingMiddleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        log.Println(r.Method, r.RequestURI)
+        next.ServeHTTP(w, r)
+    })
+}
+
 func main() {
 	// TODO: store this in db
+    rr := newRoomRegistry();
+    go rr.run()
+    rrwrap := func(handler func(reg RoomRegistry, w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
+        return func(w http.ResponseWriter, r *http.Request) {
+            handler(rr, w, r)
+        }
+    }
 	rt := mux.NewRouter()
 
 	rt.Handle("/", templ.Handler(LandingPage()))
-	rt.HandleFunc("/rooms", roomBrowserHandler)
-	rt.HandleFunc("/rooms/create", createRoomHandler)
+	rt.HandleFunc("/rooms", rrwrap(roomBrowserHandler))
+	rt.HandleFunc("/rooms/create", rrwrap(createRoomHandler))
 
 	rmrt := rt.PathPrefix("/rooms/{roomid}").Subrouter()
 	rmrt.HandleFunc("/{kind}/ws", wsHandler)
@@ -310,6 +103,7 @@ func main() {
 	})
 
 	http.Handle("/", rt)
+    rt.Use(loggingMiddleware)
 	s := &http.Server{
 		Handler:      rt,
 		Addr:         "127.0.0.1:8080",
