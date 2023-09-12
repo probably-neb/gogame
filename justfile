@@ -1,13 +1,12 @@
 build:
     templ generate
-    go build
-    ./gogame
+    go run .
 
 watch:
     ls **.templ **.go | entr -rc just build
 
 test:
-    pnpx mocha --exit
+    bun test
 
 test-open:
     OPEN_BROWSER=1 pnpx mocha --exit
