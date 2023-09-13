@@ -1,6 +1,7 @@
 build:
     templ generate
-    go run .
+    go build
+    ./gogame
 
 watch:
     ls **.templ **.go | entr -rc just build
@@ -13,3 +14,8 @@ test-open:
 
 test-watch:
     pnpx mocha --watch
+
+fmt:
+    #!/bin/bash
+    dirs=$(find . -type f -name "*.go" -exec dirname {} \; | sort -u)
+    go fmt $dirs

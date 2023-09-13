@@ -1,11 +1,11 @@
 package utils
 
-import ("github.com/gorilla/websocket"
-"github.com/a-h/templ"
-"log"
-"context")
-
-
+import (
+	"context"
+	"github.com/a-h/templ"
+	"github.com/gorilla/websocket"
+	"log"
+)
 
 func ConnWriteTemplate(conn *websocket.Conn, t templ.Component) error {
 	if conn == nil {
@@ -25,4 +25,3 @@ func ConnWriteTemplate(conn *websocket.Conn, t templ.Component) error {
 	}
 	return nil
 }
-
