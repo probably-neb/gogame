@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"time"
+    "os"
 )
 
 const MAX_GUESTS = 5
@@ -153,10 +154,20 @@ func main() {
 	})
 
 	http.Handle("/", rt)
+
 	rt.Use(loggingMiddleware)
+
+    addr := "127.0.0.1"
+    port := ":8080"
+    
+    isProd := os.Getenv("ENV") == "PRODUCTION"
+    if isProd {
+        addr = "0.0.0.0"
+    }
+    
 	s := &http.Server{
 		Handler:      rt,
-		Addr:         "127.0.0.1:8080",
+		Addr:         addr + port,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
