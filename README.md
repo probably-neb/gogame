@@ -2,7 +2,7 @@
 
 A site to play games with your friends created using go, websockets, and htmx.
 
-Deployed on [https://fly.io](fly.io)
+Deployed on [fly.io](https://fly.io)
 
 ## TODO
 - [ ] styling
