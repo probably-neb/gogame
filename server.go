@@ -69,6 +69,8 @@ func wsHandler(rr *RoomRegistry, w http.ResponseWriter, r *http.Request) {
 		p := player.NewPlayer(conn, "")
 		rr.Join <- JoinRequest{RoomId: roomId, IsHost: true, Player: &p}
 	case "guest":
+        // NOTE: must be in go routine because this handler must respond
+        // for the websocket connection to be established
         go waitForGuestName(rr, roomId, conn)
 	}
 }
@@ -79,6 +81,7 @@ func waitForGuestName(rr *RoomRegistry, roomId string, conn *websocket.Conn) {
         Headers     htmx.Headers `json:"HEADERS"`
         DisplayName string       `json:"display-name"`
     }
+    // block until name message is recieved
     _, msgBytes, err := conn.ReadMessage()
     if err != nil {
         log.Println("error: failed to read name message while joining room:", roomId)
@@ -112,7 +115,6 @@ func loggingMiddleware(next http.Handler) http.Handler {
 }
 
 func main() {
-	// TODO: store this in db
 	rr := newRoomRegistry()
 	go rr.run()
 	rrwrap := func(handler func(reg *RoomRegistry, w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
