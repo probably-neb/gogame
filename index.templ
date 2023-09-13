@@ -16,6 +16,13 @@ templ Layout(title string) {
             <script src="https://unpkg.com/htmx.org@1.9.5/dist/htmx.js"></script>
             <script src="https://cdn.tailwindcss.com"></script>
             <script src="https://unpkg.com/htmx.org@1.9.5/dist/ext/ws.js"></script>
+            <script>
+                htmx.on("htmx:wsConfigSend", function(e) {
+                    let ty = e.detail.parameters.type
+                    delete e.detail.parameters.type
+                    e.detail.parameters = {type: ty, data: e.detail.parameters}
+                })
+            </script>
         </head>
         <body id="body">
             { children... }
@@ -83,6 +90,7 @@ templ JoinRoomModal() {
     }
 }
 
+// TODO: remove redeclaration of Room, make Room have public fields instead
 type HRoom struct {
     Name string
     Host string
@@ -124,7 +132,7 @@ templ RoomWS(roomid string, kind string) {
 }
 
 templ RoomPageBody(room HRoom, kind string) {
-    <div id="room-page-body">
+    <div id="room-page-body" hx-vals={`{"type": "room"}`}>
         <h3>{room.Name}</h3>
         <h2>Host:</h2>
         <p id="host">{room.Host}</p>

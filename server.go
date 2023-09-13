@@ -69,32 +69,35 @@ func wsHandler(rr *RoomRegistry, w http.ResponseWriter, r *http.Request) {
 		p := player.NewPlayer(conn, "")
 		rr.Join <- JoinRequest{RoomId: roomId, IsHost: true, Player: &p}
 	case "guest":
-        // NOTE: must be in go routine because this handler must respond
-        // for the websocket connection to be established
-        go waitForGuestName(rr, roomId, conn)
+		// NOTE: must be in go routine because this handler must respond
+		// for the websocket connection to be established
+		go waitForGuestName(rr, roomId, conn)
 	}
 }
 
 func waitForGuestName(rr *RoomRegistry, roomId string, conn *websocket.Conn) {
 	// TODO: redirect to home in case of error
-    type SetNameMsg struct {
-        Headers     htmx.Headers `json:"HEADERS"`
-        DisplayName string       `json:"display-name"`
-    }
-    // block until name message is recieved
-    _, msgBytes, err := conn.ReadMessage()
-    if err != nil {
-        log.Println("error: failed to read name message while joining room:", roomId)
-        // TODO: conn.WriteCloseMessage
-    }
-    var msg SetNameMsg
-    if err = json.Unmarshal(msgBytes, &msg); err != nil {
-        errmsg := "error: failed to decode set-name message while joining room: " + roomId
-        log.Println(errmsg)
-        // TODO: conn.WriteCloseMessage
-    }
-    p := player.NewPlayer(conn, msg.DisplayName)
-    rr.Join <- JoinRequest{RoomId: roomId, IsHost: false, Player: &p}
+	type SetNameMsg struct {
+		Headers htmx.Headers `json:"HEADERS"`
+		Data    struct {
+			DisplayName string `json:"display-name"`
+		} `json:"data"`
+	}
+	// block until name message is recieved
+	_, msgBytes, err := conn.ReadMessage()
+	if err != nil {
+		log.Println("error: failed to read name message while joining room:", roomId)
+		// TODO: conn.WriteCloseMessage
+	}
+	var msg SetNameMsg
+	// TODO: error if name is ""
+	if err = json.Unmarshal(msgBytes, &msg); err != nil {
+		errmsg := "error: failed to decode set-name message while joining room: " + roomId
+		log.Printf("%s: %v\n", errmsg, err)
+		// TODO: conn.WriteCloseMessage
+	}
+	p := player.NewPlayer(conn, msg.Data.DisplayName)
+	rr.Join <- JoinRequest{RoomId: roomId, IsHost: false, Player: &p}
 }
 
 func roomBrowserHandler(rr *RoomRegistry, w http.ResponseWriter, r *http.Request) {
