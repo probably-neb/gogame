@@ -18,9 +18,10 @@ templ Layout(title string) {
             <script src="https://unpkg.com/htmx.org@1.9.5/dist/ext/ws.js"></script>
             <script>
                 htmx.on("htmx:wsConfigSend", function(e) {
-                    let ty = e.detail.parameters.type
-                    delete e.detail.parameters.type
-                    e.detail.parameters = {type: ty, data: e.detail.parameters}
+                    console.dir(e, {depth: null})
+                    let ty = e.detail.elt.dataset.type
+                    let grp = e.detail.elt.dataset.group
+                    e.detail.parameters = {type: ty, group: grp, data: e.detail.parameters}
                 })
             </script>
         </head>
@@ -81,7 +82,7 @@ templ CreateRoomModal() {
 
 templ JoinRoomModal() {
     @Modal("join-room-modal") {
-        <form class="text-small text-gray-800" ws-send>
+        <form class="text-small text-gray-800" ws-send data-group="room" data-type="display-name">
             <label for="display-name">Display Name:</label>
             <input type="text" name="display-name" id="display-name" placeholder="Display Name" class="rounded-md border-2 border-black"></input>
             <button id="join" type="submit" class="rounded-md border-2 border-black">Join</button>
@@ -118,7 +119,7 @@ templ GamesList(kind string) {
         <ul>
             <li>Tic-Tac-Toe
                 if kind == "host" {
-                    <button id="start-tic-tac-toe" name="play" value="tictactoe" ws-send>Play!</button>
+                    <button id="start-tic-tac-toe" name="play" value="tictactoe" ws-send data-group="room" data-type="play">Play!</button>
                 }
             </li>
         </ul>
@@ -132,7 +133,7 @@ templ RoomWS(roomid string, kind string) {
 }
 
 templ RoomPageBody(room HRoom, kind string) {
-    <div id="room-page-body" hx-vals={`{"type": "room"}`}>
+    <div id="room-page-body">
         <h3>{room.Name}</h3>
         <h2>Host:</h2>
         <p id="host">{room.Host}</p>

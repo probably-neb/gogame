@@ -23,7 +23,8 @@ func NewPlayer(conn *websocket.Conn, name string) Player {
 	}
 }
 
-type Message struct {
+type WSMessage struct {
+	Group   string          `json:"group"`
 	Type    string          `json:"type"`
 	Headers htmx.Headers    `json:"HEADERS"`
 	Data    json.RawMessage `json:"data"`
@@ -31,7 +32,7 @@ type Message struct {
 
 type PlayerMsg struct {
 	Player  *Player
-	Message Message
+	Message WSMessage
 }
 
 func (p *Player) ListenForMessages(send chan PlayerMsg) {
@@ -49,9 +50,9 @@ func (p *Player) ListenForMessages(send chan PlayerMsg) {
 			}
 			break
 		}
-		var msgJson Message
+		var msgJson WSMessage
 		if err = json.Unmarshal(msgBytes, &msgJson); err != nil {
-			log.Println("error: could not decode message:", string(msgBytes), "as a PlayerMsg")
+			log.Println("error: could not decode message:", string(msgBytes), "as a WSMessage")
 		}
 		msg := PlayerMsg{Player: p, Message: msgJson}
 		send <- msg

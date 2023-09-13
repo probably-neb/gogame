@@ -45,10 +45,10 @@ func (r *Room) run() {
 		case jrq := <-r.join:
 			go r.HandleJoinRequest(jrq)
 		case msg := <-r.recv:
-            // TODO: disconnection logic
-			switch msg.Message.Type {
+			// TODO: disconnection logic
+			switch msg.Message.Group {
 			case "room":
-				log.Println("info: room received message:", string(msg.Message.Data))
+				log.Println("info: room received", msg.Message.Type, "message:", string(msg.Message.Data))
 			case "game":
 				log.Println("unimplemented: handling of game messages")
 			}
@@ -80,6 +80,7 @@ func (r *Room) HandleJoinRequest(jrq JoinRequest) {
 	r.guests[guest] = true
 	// finally update entire room body for new guest
 	guest.Send <- RoomPageBody(r.toHTMLRoom(), "guest")
+	go guest.ListenForMessages(r.recv)
 }
 
 func (r *Room) Broadcast(c templ.Component) {

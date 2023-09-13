@@ -66,9 +66,10 @@ func Layout(title string) templ.Component {
 		}
 		var_6 := `
                 htmx.on("htmx:wsConfigSend", function(e) {
-                    let ty = e.detail.parameters.type
-                    delete e.detail.parameters.type
-                    e.detail.parameters = {type: ty, data: e.detail.parameters}
+                    console.dir(e, {depth: null})
+                    let ty = e.detail.elt.dataset.type
+                    let grp = e.detail.elt.dataset.group
+                    e.detail.parameters = {type: ty, group: grp, data: e.detail.parameters}
                 })
             `
 		_, err = templBuffer.WriteString(var_6)
@@ -294,7 +295,7 @@ func JoinRoomModal() templ.Component {
 				templBuffer = templ.GetBuffer()
 				defer templ.ReleaseBuffer(templBuffer)
 			}
-			_, err = templBuffer.WriteString("<form class=\"text-small text-gray-800\" ws-send><label for=\"display-name\">")
+			_, err = templBuffer.WriteString("<form class=\"text-small text-gray-800\" ws-send data-group=\"room\" data-type=\"display-name\"><label for=\"display-name\">")
 			if err != nil {
 				return err
 			}
@@ -471,7 +472,7 @@ func GamesList(kind string) templ.Component {
 			return err
 		}
 		if kind == "host" {
-			_, err = templBuffer.WriteString("<button id=\"start-tic-tac-toe\" name=\"play\" value=\"tictactoe\" ws-send>")
+			_, err = templBuffer.WriteString("<button id=\"start-tic-tac-toe\" name=\"play\" value=\"tictactoe\" ws-send data-group=\"room\" data-type=\"play\">")
 			if err != nil {
 				return err
 			}
@@ -549,15 +550,7 @@ func RoomPageBody(room HRoom, kind string) templ.Component {
 			var_31 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, err = templBuffer.WriteString("<div id=\"room-page-body\" hx-vals=\"")
-		if err != nil {
-			return err
-		}
-		_, err = templBuffer.WriteString(templ.EscapeString(`{"type": "room"}`))
-		if err != nil {
-			return err
-		}
-		_, err = templBuffer.WriteString("\"><h3>")
+		_, err = templBuffer.WriteString("<div id=\"room-page-body\"><h3>")
 		if err != nil {
 			return err
 		}
