@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"github.com/a-h/templ"
 	. "gogame/player"
 	"log"
@@ -49,10 +50,27 @@ func (r *Room) run() {
 			switch msg.Message.Group {
 			case "room":
 				log.Println("info: room received", msg.Message.Type, "message:", string(msg.Message.Data))
+				go r.HandleMessage(msg)
 			case "game":
 				log.Println("unimplemented: handling of game messages")
 			}
 		}
+	}
+}
+
+type PlayMsg struct {
+	Game string `json:"play"`
+}
+
+func (r *Room) HandleMessage(msg PlayerMsg) {
+	switch msg.Message.Type {
+	case "play":
+		var play PlayMsg
+		if err := json.Unmarshal(msg.Message.Data, &play); err != nil {
+			log.Println(err)
+			return
+		}
+		log.Println("info: playing game:", play.Game)
 	}
 }
 

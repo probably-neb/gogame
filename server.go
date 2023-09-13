@@ -43,7 +43,9 @@ func createRoomHandler(rr *RoomRegistry, w http.ResponseWriter, r *http.Request)
 }
 
 func joinRoomHandler(rr *RoomRegistry, w http.ResponseWriter, r *http.Request) {
-    // TODO: use switch on method like createRoomHandler instead of joining websocket and waiting for name
+	// TODO: use switch on method like createRoomHandler instead of joining websocket and waiting for name
+	// maybe create playerId and include it in ws url for connecting name to player
+	// question is how to handle accepting/rejecting players w/o keeping the request open forever
 	roomId := mux.Vars(r)["roomid"]
 	if !rr.RoomExists(roomId) {
 		errmsg := "error: tried to join non-existant room: " + roomId
@@ -80,8 +82,8 @@ func waitForGuestName(rr *RoomRegistry, roomId string, conn *websocket.Conn) {
 	// TODO: redirect to home in case of error
 	type SetNameMsg struct {
 		Headers htmx.Headers `json:"HEADERS"`
-        Group string `json:"group"`
-        Type string `json:"type"`
+		Group   string       `json:"group"`
+		Type    string       `json:"type"`
 		Data    struct {
 			DisplayName string `json:"display-name"`
 		} `json:"data"`
@@ -99,10 +101,10 @@ func waitForGuestName(rr *RoomRegistry, roomId string, conn *websocket.Conn) {
 		log.Printf("%s: %v\n", errmsg, err)
 		// TODO: conn.WriteCloseMessage
 	}
-    if msg.Type != "display-name" {
-        log.Println("error: recieved message of type", msg.Type,"but expected display-name")
-        return
-    }
+	if msg.Type != "display-name" {
+		log.Println("error: recieved message of type", msg.Type, "but expected display-name")
+		return
+	}
 	p := player.NewPlayer(conn, msg.Data.DisplayName)
 	rr.Join <- JoinRequest{RoomId: roomId, IsHost: false, Player: &p}
 }
