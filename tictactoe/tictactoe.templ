@@ -16,7 +16,7 @@ templ Box(id string, symbol *rune) {
 }
 
 templ Board() {
-    <div class="grid grid-cols-3 gap-2">
+    <div id="board" class="grid grid-cols-3 gap-2">
             @Box("cell-1", nil)
             @Box("cell-2", nil)
             @Box("cell-3", nil)
@@ -29,26 +29,10 @@ templ Board() {
     </div>
 }
 
-templ Page() {
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <title>GO GAMES!</title>
-        <link rel="icon" type="image/svg+xml" href="/dist/favicon.svg" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="robots" content="index, follow" />
-        <meta name="revisit-after" content="7 days" />
-        <meta name="language" content="English" />
-        <script src="https://unpkg.com/htmx.org@1.9.5" integrity="sha384-xcuj3WpfgjlKF+FXhSQFQ0ZNr39ln+hwjN3npfM9VBnUskLolQAcN80McRIVOPuO" crossorigin="anonymous"></script>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <script src="https://unpkg.com/htmx.org/dist/ext/ws.js"></script>
-    </head>
-    <body>
-    <div class="bg-white shadow-lg rounded-lg p-4" hx-ext="ws" ws-connect="/games/tictactoe/ws">
+templ Game() {
+    <div id="ws-connection" hx-swap-oob="innerHTML">
         <h1 class="text-2xl font-semibold mb-4">Tic-Tac-Toe</h1>
         @Board()
         <button class="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Reset</button>
     </div>
-    </body>
-</html>
 }

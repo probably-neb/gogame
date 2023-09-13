@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/a-h/templ"
 	. "gogame/player"
+    "gogame/tictactoe"
 	"log"
 )
 
@@ -28,6 +29,8 @@ type Room struct {
 	guests map[*Player]bool
 	join   chan JoinRequest
 	recv   chan PlayerMsg
+    game   chan PlayerMsg
+    gameExit chan struct{}
 }
 
 func makeRoom(name string, hostName string) Room {
@@ -37,6 +40,8 @@ func makeRoom(name string, hostName string) Room {
 		guests: make(map[*Player]bool),
 		join:   make(chan JoinRequest),
 		recv:   make(chan PlayerMsg),
+        game: make(chan PlayerMsg),
+        gameExit: make(chan struct{}),
 	}
 }
 
@@ -47,13 +52,20 @@ func (r *Room) run() {
 			go r.HandleJoinRequest(jrq)
 		case msg := <-r.recv:
 			// TODO: disconnection logic
-			switch msg.Message.Group {
-			case "room":
+			if msg.Message.Group == "room" {
 				log.Println("info: room received", msg.Message.Type, "message:", string(msg.Message.Data))
 				go r.HandleMessage(msg)
-			case "game":
-				log.Println("unimplemented: handling of game messages")
-			}
+                continue
+            }
+            // else
+            select {
+                case r.game<-msg:
+                    // pass
+                default:
+                    log.Println("error: recieved game message:", msg.Message, "but room was not playing a game")
+            }
+        case <-r.gameExit:
+            log.Println("game ended")
 		}
 	}
 }
@@ -71,7 +83,23 @@ func (r *Room) HandleMessage(msg PlayerMsg) {
 			return
 		}
 		log.Println("info: playing game:", play.Game)
+        go r.StartGame(play.Game)
 	}
+}
+
+func (r *Room) StartGame(game string) {
+    // TODO: check for correct number of players
+    switch game {
+    case "tictactoe":
+        var guest *Player
+        for g, ok := range r.guests {
+            if ok {
+                guest = g
+                break
+            }
+        }
+        go tictactoe.Start(r.host, guest, r.game, r.gameExit)
+    }
 }
 
 func (r *Room) HandleJoinRequest(jrq JoinRequest) {
