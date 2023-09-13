@@ -55,18 +55,19 @@ export async function createRoom(browser, name, hostName) {
     await open.click();
     await page.waitForSelector(E.create_room.modal);
     let modal = await page.$(E.create_room.modal);
-    if (!name) return page;
+    expect(modal).to.exist
     await page.type(E.create_room.room_name, name);
     await page.type(E.create_room.display_name, hostName);
     let create = await page.$(E.create_room.create);
     expect(create).exists.and.to.have.property("click");
     await create.click()
-    await waitUntil(async () => {
+    let createResponse = await page.waitForResponse((_res) => true, {timeout: 500})
+    assert(createResponse.ok(), `create response has body: ${await createResponse.text()}`)
+    let urlIncludesName = await waitUntil(async () => {
         return page.url().includes(name);
-    }, 100, 10)
-    // await page.waitForSelector(E.room.ws);
-    // expect(page.$(E.room.name)).exists;
-    // expect(page.url()).to.include(name);
+    }, 1000, 10)
+    assert(urlIncludesName, "url does not include room name")
+    // TODO: hostName present
     return page;
 }
 

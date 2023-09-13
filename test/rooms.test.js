@@ -39,7 +39,7 @@ test("create", async function () {
     let entries = await joinPage.$$(E.join_room.entries);
     // console.error(await page.content())
     expect(entries).to.have.lengthOf.at.least(1, "did not find room entries");
-    let entry = await joinPage.$("#" + name);
+    let entry = await joinPage.$("#" + "foo");
     expect(entry).to.exist;
 });
 
@@ -47,8 +47,8 @@ test("join", async function () {
     let hostName = "host",
         guestName = "guest",
         roomName = "foo";
-    let hostPage = await createRoom(browser, roomName, hostName);
-    let guestPage = await joinRoom(browser, roomName, guestName);
+    await createRoom(browser, roomName, hostName);
+    await joinRoom(browser, roomName, guestName);
 });
 test("create and join", async function () {
     let hostName = "host",
