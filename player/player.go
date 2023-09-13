@@ -2,14 +2,24 @@ package player
 
 import (
     "github.com/gorilla/websocket"
+    "github.com/a-h/templ"
     "log"
+    "context"
 )
 
 
 type Player struct {
 	conn        *websocket.Conn
 	DisplayName string
-    Send        chan []byte
+    Send        chan templ.Component
+}
+
+func NewPlayer(conn *websocket.Conn, name string) Player {
+    return Player{
+        conn: conn,
+        DisplayName: name,
+        Send: make(chan templ.Component),
+    }
 }
 
 type PlayerMsg struct {
@@ -42,8 +52,8 @@ func (p *Player) WriteMessages() {
         p.conn.Close()
     }()
     for {
-		message, ok := <-p.Send;
-            // channel closed
+		partial, ok := <-p.Send;
+        // channel closed
         if !ok {
             p.conn.WriteMessage(websocket.CloseMessage, []byte{})
             return
@@ -53,7 +63,7 @@ func (p *Player) WriteMessages() {
         if err != nil {
             return
         }
-        w.Write(message)
+        partial.Render(context.TODO(), w)
 
         if err := w.Close(); err != nil {
             return

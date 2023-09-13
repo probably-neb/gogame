@@ -1,9 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"github.com/a-h/templ"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"gogame/htmx"
+	"gogame/player"
 	"log"
 	"net/http"
 	"time"
@@ -18,48 +21,81 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-func joinRoomHandler(w http.ResponseWriter, r *http.Request) {
-    // TODO:
-}
-
-func guestWSHandler(room *Room, conn *websocket.Conn, w http.ResponseWriter, r *http.Request) {
-    // TODO:
-}
-
-func hostWSHandler(room *Room, conn *websocket.Conn, w http.ResponseWriter, r *http.Request) {
-    // TODO:
-}
-
-func createRoomHandler(rr RoomRegistry, w http.ResponseWriter, r *http.Request) {
+func createRoomHandler(rr *RoomRegistry, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		CreateRoomPage().Render(r.Context(), w)
 	case http.MethodPost:
-        hostName := r.FormValue("display-name")
-        roomId := r.FormValue("room-name")
-        if rr.RoomExists(roomId) {
-            log.Println("error: attempt to create room that already exists:", roomId)
-            http.Error(w, "Room already exists", http.StatusBadRequest)
-            return
-        }
-        room := NewRoom{Name: roomId, HostName: hostName}
-        rr.Register<- room
+		hostName := r.FormValue("display-name")
+		roomId := r.FormValue("room-name")
+		if rr.RoomExists(roomId) {
+			log.Println("error: attempt to create room that already exists:", roomId)
+			http.Error(w, "Room already exists", http.StatusBadRequest)
+			return
+		}
+		room := NewRoom{Name: roomId, HostName: hostName}
+		rr.Register <- room
 		w.Header().Set("HX-Replace-Url", "/rooms/"+roomId)
-        HostRoomPage(room.toHTMLRoom()).Render(r.Context(), w)
-        log.Println("created room:", roomId)
-    // TODO: MethodDELETE
+		HostRoomPage(room.toHTMLRoom()).Render(r.Context(), w)
+		log.Println("created room:", roomId)
+		// TODO: MethodDELETE
 	}
 }
 
-
-func wsHandler(w http.ResponseWriter, r *http.Request) {
-    // TODO:
-
-	// TODO: redirect to home in case of error
+func joinRoomHandler(rr *RoomRegistry, w http.ResponseWriter, r *http.Request) {
+	roomId := mux.Vars(r)["roomid"]
+	if !rr.RoomExists(roomId) {
+		errmsg := "error: tried to join non-existant room: " + roomId
+		log.Println(errmsg)
+		http.Error(w, errmsg, http.StatusBadRequest)
+	}
+	JoinRoomPage(rr.Room(roomId).toHTMLRoom()).Render(r.Context(), w)
 }
 
-func roomBrowserHandler(rr RoomRegistry, w http.ResponseWriter, r *http.Request) {
-    roomInfos := rr.GetHTMLRooms()
+func wsHandler(rr *RoomRegistry, w http.ResponseWriter, r *http.Request) {
+	roomId := mux.Vars(r)["roomid"]
+	if !rr.RoomExists(roomId) {
+		log.Println("error: attempt to connect to non-existant room:", roomId)
+		http.Error(w, "error: attempt to connect to non-existant room:", http.StatusBadRequest)
+	}
+	kind := mux.Vars(r)["kind"]
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println("failed to upgrade connection:", err)
+		http.Error(w, "failed to upgrade connection", http.StatusInternalServerError)
+	}
+	switch kind {
+	case "host":
+		p := player.NewPlayer(conn, "")
+		rr.Join <- JoinRequest{RoomId: roomId, IsHost: true, Player: &p}
+	case "guest":
+        go waitForGuestName(rr, roomId, conn)
+	}
+}
+
+func waitForGuestName(rr *RoomRegistry, roomId string, conn *websocket.Conn) {
+	// TODO: redirect to home in case of error
+    type SetNameMsg struct {
+        Headers     htmx.Headers `json:"HEADERS"`
+        DisplayName string       `json:"display-name"`
+    }
+    _, msgBytes, err := conn.ReadMessage()
+    if err != nil {
+        log.Println("error: failed to read name message while joining room:", roomId)
+        // TODO: conn.WriteCloseMessage
+    }
+    var msg SetNameMsg
+    if err = json.Unmarshal(msgBytes, &msg); err != nil {
+        errmsg := "error: failed to decode set-name message while joining room: " + roomId
+        log.Println(errmsg)
+        // TODO: conn.WriteCloseMessage
+    }
+    p := player.NewPlayer(conn, msg.DisplayName)
+    rr.Join <- JoinRequest{RoomId: roomId, IsHost: false, Player: &p}
+}
+
+func roomBrowserHandler(rr *RoomRegistry, w http.ResponseWriter, r *http.Request) {
+	roomInfos := rr.GetHTMLRooms()
 	// in case of hx-boost don't render (and send!) the whole page
 	if r.Header.Get("HX-Request") == "true" {
 		RoomList(roomInfos).Render(r.Context(), w)
@@ -69,21 +105,21 @@ func roomBrowserHandler(rr RoomRegistry, w http.ResponseWriter, r *http.Request)
 }
 
 func loggingMiddleware(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        log.Println(r.Method, r.RequestURI)
-        next.ServeHTTP(w, r)
-    })
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.Method, r.RequestURI)
+		next.ServeHTTP(w, r)
+	})
 }
 
 func main() {
 	// TODO: store this in db
-    rr := newRoomRegistry();
-    go rr.run()
-    rrwrap := func(handler func(reg RoomRegistry, w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
-        return func(w http.ResponseWriter, r *http.Request) {
-            handler(rr, w, r)
-        }
-    }
+	rr := newRoomRegistry()
+	go rr.run()
+	rrwrap := func(handler func(reg *RoomRegistry, w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			handler(&rr, w, r)
+		}
+	}
 	rt := mux.NewRouter()
 
 	rt.Handle("/", templ.Handler(LandingPage()))
@@ -91,8 +127,8 @@ func main() {
 	rt.HandleFunc("/rooms/create", rrwrap(createRoomHandler))
 
 	rmrt := rt.PathPrefix("/rooms/{roomid}").Subrouter()
-	rmrt.HandleFunc("/{kind}/ws", wsHandler)
-	rmrt.HandleFunc("/join", joinRoomHandler)
+	rmrt.HandleFunc("/{kind}/ws", rrwrap(wsHandler))
+	rmrt.HandleFunc("/join", rrwrap(joinRoomHandler))
 
 	// helper function to do hmtx client side actions (like hx-push-url, or hx-swap="delete")
 	// especially when using a websocket connection that cannot send responses in the same way
@@ -103,7 +139,7 @@ func main() {
 	})
 
 	http.Handle("/", rt)
-    rt.Use(loggingMiddleware)
+	rt.Use(loggingMiddleware)
 	s := &http.Server{
 		Handler:      rt,
 		Addr:         "127.0.0.1:8080",

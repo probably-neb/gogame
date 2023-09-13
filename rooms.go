@@ -2,8 +2,8 @@ package main
 
 import (
 	. "gogame/player"
-    "gogame/htmx"
-    "log"
+	"log"
+    "github.com/a-h/templ"
 )
 
 type NewRoom struct {
@@ -16,11 +16,10 @@ func (nr *NewRoom) toHTMLRoom() HRoom {
 }
 
 type JoinRequest struct {
-	roomId string
-    isHost bool
-	player *Player
+	RoomId string
+	Player *Player
+	IsHost bool
 }
-
 
 type Room struct {
 	name   string
@@ -30,41 +29,75 @@ type Room struct {
 }
 
 func makeRoom(name string, hostName string) Room {
-	return Room{
-        name: name,
-        host: &Player{DisplayName: hostName},
-        guests: make(map[*Player]bool),
-        join: make(chan JoinRequest),
-    }
+	return Room {
+		name:   name,
+		host:   &Player{DisplayName: hostName},
+		guests: make(map[*Player]bool),
+		join:   make(chan JoinRequest),
+	}
 }
 
 func (r *Room) run() {
 	for {
 		select {
-            // case jrq := <-r.join:
-        }
+		case jrq := <-r.join:
+			if jrq.IsHost {
+				jrq.Player.DisplayName = r.host.DisplayName
+				r.host = jrq.Player
+                // go r.host.ListenForMessages( /* TODO: make channel here */ )
+                go r.host.WriteMessages()
+				break
+			}
+
+            // TODO: consider putting this in go routine so it does not block the room event loop
+            guest := jrq.Player
+            // go guest.ListenForMessages( /* TODO: make channel here */ )
+            go guest.WriteMessages()
+            // close join modal
+            guest.Send <- CloseJoinModal()
+            // update url
+            guest.Send <- JoinRoomRedirect(r.name)
+            // update guest list for host and other guests
+            shouldAppend := true
+            updatedGuestList := []string{guest.DisplayName}
+            r.Broadcast(GuestList(updatedGuestList, shouldAppend))
+            // add guest to guests
+            r.guests[guest] = true
+            // finally update entire room body for new guest
+            guest.Send <- RoomPageBody(r.toHTMLRoom(), "guest")
+		}
 	}
+}
+
+func (r *Room) Broadcast(c templ.Component) {
+    r.host.Send <- c
+    for g, ok := range r.guests {
+        if !ok {
+            continue
+        }
+        g.Send <- c
+    }
 }
 
 func (r *Room) toHTMLRoom() HRoom {
 	players := make([]string, len(r.guests))
-    i := 0
+	i := 0
 	for guest, ok := range r.guests {
-        if !ok || guest == nil {
-            continue
-        }
+		if !ok || guest == nil {
+			continue
+		}
 		players[i] = guest.DisplayName
-        i++
+		i++
 	}
 	return HRoom{Name: r.name, Host: r.host.DisplayName, Guests: players}
 }
 
 func (r *Room) ListenForHostMessages() {
-    // TODO: 
+	// TODO:
 }
 
 func (r *Room) StartGame(game string) {
-    // TODO:
+	// TODO:
 }
 
 func (r *Room) DisconnectHost(err error) {
@@ -76,26 +109,8 @@ func (r *Room) DisconnectGuest(g Player, err error) {
 }
 
 func (r *Room) ConnectGuest() {
-	type GuestJoinMsg struct {
-		Headers     htmx.Headers `json:"HEADERS"`
-		DisplayName string       `json:"display-name"`
-	}
 	// guest := Player{conn: conn, DisplayName: msg.DisplayName}
 	// // close join modal
-	// conn.WriteMessage(websocket.TextMessage, []byte(`<div id="join-room-modal"></div>`))
-	// // update url
-	// rhtml := r.toHTMLRoom()
-	// err = utils.ConnWriteTemplate(conn, JoinRoomRedirect(rhtml))
-	// if err != nil {
-	// 	log.Println(err)
-	// 	return
-	// }
-	// // update room body
-	// err = utils.ConnWriteTemplate(conn, RoomPageBody(rhtml, "guest"))
-	// if err != nil {
-	// 	log.Println(err)
-	// 	return
-	// }
 	//
 	// // TODO: update all connections with new guest
 	// newGuestNameList := []string{guest.DisplayName}
@@ -111,12 +126,12 @@ type RoomRegistry struct {
 }
 
 func newRoomRegistry() RoomRegistry {
-    return RoomRegistry {
-        rooms: make(map[string]*Room),
-        Register: make(chan NewRoom),
-        Unregister: make(chan string),
-        Join: make(chan JoinRequest),
-    }
+	return RoomRegistry{
+		rooms:      make(map[string]*Room),
+		Register:   make(chan NewRoom),
+		Unregister: make(chan string),
+		Join:       make(chan JoinRequest),
+	}
 }
 
 func (rr *RoomRegistry) run() {
@@ -129,18 +144,14 @@ func (rr *RoomRegistry) run() {
 		case roomId := <-rr.Unregister:
 			delete(rr.rooms, roomId)
 		case joinRequest := <-rr.Join:
-			room, ok := rr.rooms[joinRequest.roomId]
+			room, ok := rr.rooms[joinRequest.RoomId]
 			if !ok {
-				log.Println("error: attempt to join non-existant room:", joinRequest.roomId)
-                continue
+				log.Println("error: attempt to join non-existant room:", joinRequest.RoomId)
+				continue
 			}
 			room.join <- joinRequest
 		}
 	}
-}
-
-func (rr *RoomRegistry) Room(id string) *Room {
-    return rr.rooms[id]
 }
 
 func (rr *RoomRegistry) GetHTMLRooms() []HRoom {
@@ -154,9 +165,13 @@ func (rr *RoomRegistry) GetHTMLRooms() []HRoom {
 		hrooms[i] = room.toHTMLRoom()
 		i++
 	}
-    return hrooms
+	return hrooms
 }
 
 func (rr *RoomRegistry) RoomExists(roomId string) bool {
-    return roomId != "" && rr.rooms[roomId] != nil
+	return roomId != "" && rr.rooms[roomId] != nil
+}
+
+func (rr *RoomRegistry) Room(roomId string) *Room {
+	return rr.rooms[roomId]
 }

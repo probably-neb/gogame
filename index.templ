@@ -71,6 +71,7 @@ templ CreateRoomModal() {
         </form>
     }
 }
+
 templ JoinRoomModal() {
     @Modal("join-room-modal") {
         <form class="text-small text-gray-800" ws-send>
@@ -107,7 +108,11 @@ templ GamesList(kind string) {
     <div>
         <h3>Games</h3>
         <ul>
-            <li>Tic-Tac-Toe <button>Start!</button></li>
+            <li>Tic-Tac-Toe
+                if kind == "host" {
+                    <button id="start-tic-tac-toe" name="play" value="tictactoe" ws-send>Play!</button>
+                }
+            </li>
         </ul>
     </div>
 }
@@ -162,19 +167,23 @@ templ HostRoomPage(room HRoom) {
     }
 }
 
-templ JoinRoomRedirect(room HRoom) {
+templ JoinRoomRedirect(roomId string) {
         <div
             id="body"
             hx-swap-oob="beforeend"
         >
             <div
                 hx-get="/ok"
-                hx-replace-url={RoomURL(room.Name,"")}
+                hx-replace-url={RoomURL(roomId,"")}
                 hx-swap="none"
                 hx-trigger="load"
             >
             </div>
         </div>
+}
+
+templ CloseJoinModal() {
+    <div id="join-room-modal"></div>
 }
 
 templ JoinRoomEntry(room HRoom) {
