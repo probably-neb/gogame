@@ -176,21 +176,6 @@ templ HostRoomPage(room HRoom) {
     }
 }
 
-templ JoinRoomRedirect(roomId string) {
-        <div
-            id="body"
-            hx-swap-oob="beforeend"
-        >
-            <div
-                hx-get="/ok"
-                hx-replace-url={RoomURL(roomId,"")}
-                hx-swap="none"
-                hx-trigger="load"
-            >
-            </div>
-        </div>
-}
-
 templ CloseJoinModal() {
     <div id="join-room-modal"></div>
 }
@@ -200,7 +185,7 @@ templ JoinRoomEntry(room HRoom) {
     <h2>Host:</h2>
     <p>{room.Host}</p>
     <h2>Guests: {fmt.Sprint(len(room.Guests))}</h2>
-    <button id="join-room" class="rounded-md border-2 border-black"><a href={templ.SafeURL(RoomURL(room.Name, "/join"))} hx-boost="true">Join Room</a></button>
+    <button id="join-room" class="rounded-md border-2 border-black"><a href={templ.SafeURL("/rooms/" + room.Name)} hx-boost="true">Join Room</a></button>
 }
 
 templ RoomList(rooms []HRoom) {

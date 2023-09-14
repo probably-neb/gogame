@@ -142,8 +142,8 @@ func main() {
 	rt.HandleFunc("/rooms/create", rrwrap(createRoomHandler))
 
 	rmrt := rt.PathPrefix("/rooms/{roomid}").Subrouter()
+	rmrt.HandleFunc("", rrwrap(joinRoomHandler))
 	rmrt.HandleFunc("/{kind}/ws", rrwrap(wsHandler))
-	rmrt.HandleFunc("/join", rrwrap(joinRoomHandler))
 
 	// helper function to do hmtx client side actions (like hx-push-url, or hx-swap="delete")
 	// especially when using a websocket connection that cannot send responses in the same way

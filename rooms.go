@@ -74,14 +74,12 @@ func (r *Room) run() {
 	}
 }
 
-type PlayMsg struct {
-	Game string `json:"play"`
-}
-
 func (r *Room) HandleMessage(msg PlayerMsg) {
 	switch msg.Message.Type {
 	case "play":
-		var play PlayMsg
+		var play struct {
+            Game string `json:"play"`
+        }
 		if err := json.Unmarshal(msg.Message.Data, &play); err != nil {
 			log.Println(err)
 			return
@@ -119,8 +117,6 @@ func (r *Room) HandleJoinRequest(jrq JoinRequest) {
 	go guest.WriteMessages()
 	// close join modal
 	guest.Send <- CloseJoinModal()
-	// update url
-	guest.Send <- JoinRoomRedirect(r.name)
 	// update guest list for host and other guests
 	shouldAppend := true
 	updatedGuestList := []string{guest.DisplayName}
