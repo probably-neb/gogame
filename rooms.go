@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"github.com/a-h/templ"
 	. "gogame/player"
-    "gogame/tictactoe"
+	"gogame/tictactoe"
 	"log"
 )
 
@@ -24,25 +24,16 @@ type JoinRequest struct {
 }
 
 type Room struct {
-	name   string
-	host   *Player
-	guests map[*Player]bool
-	join   chan JoinRequest
-	recv   chan PlayerMsg
-    game   chan PlayerMsg
-    gameExit chan struct{}
-}
-
-func makeRoom(name string, hostName string) Room {
-	return Room{
-		name:   name,
-		host:   &Player{DisplayName: hostName},
-		guests: make(map[*Player]bool),
-		join:   make(chan JoinRequest),
-		recv:   make(chan PlayerMsg),
-        game: make(chan PlayerMsg),
-        gameExit: make(chan struct{}),
-	}
+	rr       *RoomRegistry
+	name     string
+	host     *Player
+	guests   map[*Player]bool
+	join     chan JoinRequest
+	leave    chan *Player
+	recv     chan PlayerMsg
+	game     chan PlayerMsg
+	gameExit chan struct{}
+	end      chan struct{}
 }
 
 func (r *Room) run() {
@@ -50,22 +41,35 @@ func (r *Room) run() {
 		select {
 		case jrq := <-r.join:
 			go r.HandleJoinRequest(jrq)
+		case quitter := <-r.leave:
+			r.HandleDisconnect(quitter)
 		case msg := <-r.recv:
 			// TODO: disconnection logic
 			if msg.Message.Group == "room" {
 				log.Println("info: room received", msg.Message.Type, "message:", string(msg.Message.Data))
 				go r.HandleMessage(msg)
-                continue
-            }
-            // else
-            select {
-                case r.game<-msg:
-                    // pass
-                default:
-                    log.Println("error: recieved game message:", msg.Message, "but room was not playing a game")
-            }
-        case <-r.gameExit:
-            log.Println("game ended")
+				continue
+			}
+			// else
+			select {
+			case r.game <- msg:
+				// pass
+				continue
+			default:
+				log.Println("error: recieved game message:", msg.Message, "but room was not playing a game")
+			}
+		case <-r.gameExit:
+			log.Println("game ended")
+		case <-r.end:
+			// not sure if closing all channels is necessarry
+			// closing game is required so game go routine exits
+			close(r.join)
+			close(r.leave)
+			close(r.recv)
+			close(r.game)
+			close(r.gameExit)
+			close(r.end)
+			return
 		}
 	}
 }
@@ -83,36 +87,35 @@ func (r *Room) HandleMessage(msg PlayerMsg) {
 			return
 		}
 		log.Println("info: playing game:", play.Game)
-        go r.StartGame(play.Game)
+		go r.StartGame(play.Game)
 	}
 }
 
 func (r *Room) StartGame(game string) {
-    // TODO: check for correct number of players
-    switch game {
-    case "tictactoe":
-        var guest *Player
-        for g, ok := range r.guests {
-            if ok {
-                guest = g
-                break
-            }
-        }
-        go tictactoe.Start(r.host, guest, r.game, r.gameExit)
-    }
+	// TODO: check for correct number of players
+	switch game {
+	case "tictactoe":
+		var guest *Player
+		for g, ok := range r.guests {
+			if ok {
+				guest = g
+				break
+			}
+		}
+		go tictactoe.Start(r.host, guest, r.game, r.gameExit)
+	}
 }
 
 func (r *Room) HandleJoinRequest(jrq JoinRequest) {
 	if jrq.IsHost {
 		jrq.Player.DisplayName = r.host.DisplayName
 		r.host = jrq.Player
-		go r.host.ListenForMessages(r.recv)
+		go r.host.ListenForMessages(r.recv, r.leave)
 		go r.host.WriteMessages()
 		return
 	}
 
 	guest := jrq.Player
-	// go guest.ListenForMessages( /* TODO: make channel here */ )
 	go guest.WriteMessages()
 	// close join modal
 	guest.Send <- CloseJoinModal()
@@ -122,15 +125,69 @@ func (r *Room) HandleJoinRequest(jrq JoinRequest) {
 	shouldAppend := true
 	updatedGuestList := []string{guest.DisplayName}
 	r.Broadcast(GuestList(updatedGuestList, shouldAppend))
-	// add guest to guests
+	// add guest to guests (after broadcasting so they don't have their name twice)
 	r.guests[guest] = true
 	// finally update entire room body for new guest
 	guest.Send <- RoomPageBody(r.toHTMLRoom(), "guest")
-	go guest.ListenForMessages(r.recv)
+	go guest.ListenForMessages(r.recv, r.leave)
+}
+
+func (r *Room) HandleDisconnect(quitter *Player) {
+	isHost := r.host == quitter
+	if !isHost {
+		delete(r.guests, quitter)
+		shouldAppend := false
+		hroom := r.toHTMLRoom()
+		// replace guest list
+		r.Broadcast(GuestList(hroom.Guests, shouldAppend))
+		return
+	}
+	numGuests := r.NumGuests()
+	if numGuests == 0 {
+		// close room
+		r.Destroy()
+		return
+	}
+	var newHost *Player
+	for g, ok := range r.guests {
+		if ok {
+			newHost = g
+			break
+		}
+	}
+	r.host = newHost
+	delete(r.guests, newHost)
+	hroom := r.toHTMLRoom()
+	r.host.Send <- RoomPageBody(hroom, "host")
+	shouldAppend := false
+	guestList := GuestList(hroom.Guests, shouldAppend)
+	for g, ok := range r.guests {
+		if !ok {
+			continue
+		}
+		// replace guest list
+		g.Send <- guestList
+	}
+}
+
+func (r *Room) Destroy() {
+	r.rr.Unregister <- r.name
+}
+
+func (r *Room) NumGuests() int {
+	n := 0
+	for _, ok := range r.guests {
+		if ok {
+			n++
+		}
+	}
+	return n
 }
 
 func (r *Room) Broadcast(c templ.Component) {
-	r.host.Send <- c
+	if r.host != nil {
+		r.host.Send <- c
+	}
 	for g, ok := range r.guests {
 		if !ok {
 			continue
@@ -172,10 +229,11 @@ func (rr *RoomRegistry) run() {
 	for {
 		select {
 		case newRoom := <-rr.Register:
-			room := makeRoom(newRoom.Name, newRoom.HostName)
+			room := rr.makeRoom(newRoom.Name, newRoom.HostName)
 			rr.rooms[room.name] = &room
 			go room.run()
 		case roomId := <-rr.Unregister:
+			rr.rooms[roomId].end <- struct{}{}
 			delete(rr.rooms, roomId)
 		case joinRequest := <-rr.Join:
 			room, ok := rr.rooms[joinRequest.RoomId]
@@ -185,6 +243,21 @@ func (rr *RoomRegistry) run() {
 			}
 			room.join <- joinRequest
 		}
+	}
+}
+
+func (rr *RoomRegistry) makeRoom(name string, hostName string) Room {
+	return Room{
+		rr:       rr,
+		name:     name,
+		host:     &Player{DisplayName: hostName},
+		guests:   make(map[*Player]bool),
+		join:     make(chan JoinRequest),
+		leave:    make(chan *Player),
+		recv:     make(chan PlayerMsg),
+		game:     make(chan PlayerMsg),
+		gameExit: make(chan struct{}),
+		end:      make(chan struct{}),
 	}
 }
 

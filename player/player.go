@@ -35,9 +35,10 @@ type PlayerMsg struct {
 	Message WSMessage
 }
 
-func (p *Player) ListenForMessages(send chan PlayerMsg) {
+func (p *Player) ListenForMessages(send chan PlayerMsg, disconnect chan *Player) {
 	defer func() {
 		p.conn.Close()
+		disconnect <- p
 	}()
 	for {
 		_, msgBytes, err := p.conn.ReadMessage()
@@ -46,13 +47,14 @@ func (p *Player) ListenForMessages(send chan PlayerMsg) {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("close error: %v\n", err)
 			} else {
-				log.Printf("error: %v\n", err)
+				log.Printf("error: %s disconnected from room: %v\n", p.DisplayName, err)
 			}
 			break
 		}
 		var msgJson WSMessage
 		if err = json.Unmarshal(msgBytes, &msgJson); err != nil {
 			log.Println("error: could not decode message:", string(msgBytes), "as a WSMessage")
+			break
 		}
 		msg := PlayerMsg{Player: p, Message: msgJson}
 		send <- msg
