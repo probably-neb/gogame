@@ -1,6 +1,11 @@
 package main
 
-import "fmt"
+import (
+    "os"
+    "fmt"
+)
+
+var isProd = os.Getenv("ENV") == "PRODUCTION"
 
 templ Layout(title string) {
     <!doctype html>
@@ -13,9 +18,15 @@ templ Layout(title string) {
             <meta name="robots" content="index, follow" />
             <meta name="revisit-after" content="7 days" />
             <meta name="language" content="English" />
-            <script src="https://unpkg.com/htmx.org@1.9.5/dist/htmx.js"></script>
-            <script src="https://cdn.tailwindcss.com"></script>
+            <script
+                if isProd {
+                    src="https://unpkg.com/htmx.org@1.9.5/dist/htmx.min.js"
+                } else {
+                    src="https://unpkg.com/htmx.org@1.9.5/dist/htmx.js"
+                }
+            ></script>
             <script src="https://unpkg.com/htmx.org@1.9.5/dist/ext/ws.js"></script>
+            <script src="https://cdn.tailwindcss.com"></script>
             <script>
                 htmx.on("htmx:wsConfigSend", function(e) {
                     console.dir(e, {depth: null})

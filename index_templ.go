@@ -9,7 +9,12 @@ import "context"
 import "io"
 import "bytes"
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
+
+var isProd = os.Getenv("ENV") == "PRODUCTION"
 
 func Layout(title string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
@@ -33,7 +38,22 @@ func Layout(title string) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</title><link rel=\"icon\" type=\"image/svg+xml\" href=\"/dist/favicon.svg\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"robots\" content=\"index, follow\"><meta name=\"revisit-after\" content=\"7 days\"><meta name=\"language\" content=\"English\"><script src=\"https://unpkg.com/htmx.org@1.9.5/dist/htmx.js\">")
+		_, err = templBuffer.WriteString("</title><link rel=\"icon\" type=\"image/svg+xml\" href=\"/dist/favicon.svg\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"robots\" content=\"index, follow\"><meta name=\"revisit-after\" content=\"7 days\"><meta name=\"language\" content=\"English\"><script")
+		if err != nil {
+			return err
+		}
+		if isProd {
+			_, err = templBuffer.WriteString(" src=\"https://unpkg.com/htmx.org@1.9.5/dist/htmx.min.js\"")
+			if err != nil {
+				return err
+			}
+		} else {
+			_, err = templBuffer.WriteString(" src=\"https://unpkg.com/htmx.org@1.9.5/dist/htmx.js\"")
+			if err != nil {
+				return err
+			}
+		}
+		_, err = templBuffer.WriteString(">")
 		if err != nil {
 			return err
 		}
@@ -42,7 +62,7 @@ func Layout(title string) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</script><script src=\"https://cdn.tailwindcss.com\">")
+		_, err = templBuffer.WriteString("</script><script src=\"https://unpkg.com/htmx.org@1.9.5/dist/ext/ws.js\">")
 		if err != nil {
 			return err
 		}
@@ -51,7 +71,7 @@ func Layout(title string) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</script><script src=\"https://unpkg.com/htmx.org@1.9.5/dist/ext/ws.js\">")
+		_, err = templBuffer.WriteString("</script><script src=\"https://cdn.tailwindcss.com\">")
 		if err != nil {
 			return err
 		}
