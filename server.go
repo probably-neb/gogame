@@ -9,8 +9,8 @@ import (
 	"gogame/player"
 	"log"
 	"net/http"
+	"os"
 	"time"
-    "os"
 )
 
 const MAX_GUESTS = 5
@@ -157,14 +157,14 @@ func main() {
 
 	rt.Use(loggingMiddleware)
 
-    addr := "127.0.0.1"
-    port := ":8080"
-    
-    isProd := os.Getenv("ENV") == "PRODUCTION"
-    if isProd {
-        addr = "0.0.0.0"
-    }
-    
+	addr := "127.0.0.1"
+	port := ":8080"
+
+	isProd := os.Getenv("ENV") == "PRODUCTION"
+	if isProd {
+		addr = "0.0.0.0"
+	}
+
 	s := &http.Server{
 		Handler:      rt,
 		Addr:         addr + port,

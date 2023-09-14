@@ -43,7 +43,7 @@ func listenForMoves(msgs chan player.PlayerMsg, moves chan Move) {
 }
 
 func Start(host *Player, guest *Player, msgs chan player.PlayerMsg, exit chan struct{}) {
-    defer func() {exit <- struct{}{}}()
+	defer func() { exit <- struct{}{} }()
 	moves := make(chan Move)
 	symbols := map[*Player]Symbol{host: X, guest: O}
 	host.Send <- Game()
@@ -64,7 +64,7 @@ func Start(host *Player, guest *Player, msgs chan player.PlayerMsg, exit chan st
 			log.Println("host's turn")
 			turn = symbols[host]
 		}
-        symbolRune := rune(symbol)
+		symbolRune := rune(symbol)
 		newBox := Box(move.cell, &symbolRune)
 		host.Send <- newBox
 		guest.Send <- newBox
