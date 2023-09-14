@@ -1,8 +1,9 @@
 {
   "dependencies": {
     "browser-sync": "^2.29.3",
+    "bun-types": "^1.0.1",
     "chai": "^4.3.8",
     "mocha": "^10.2.0",
-    "puppeteer": "^21.1.1"
+    "puppeteer": "^21.2.1"
   }
 }

@@ -10,10 +10,10 @@ test:
     bun test
 
 test-open:
-    OPEN_BROWSER=1 pnpx mocha --exit
+    OPEN_BROWSER=1 bun test
 
 test-watch:
-    pnpx mocha --watch
+    bun test --watch
 
 fmt:
     #!/bin/bash
