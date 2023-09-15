@@ -1,3 +1,5 @@
+const colors = require("tailwindcss/colors")
+
 /** @type {import('tailwindcss').Config} */
 export default {
     content: ["./**.templ"],
@@ -16,7 +18,7 @@ export default {
                 ring: "hsl(var(--ring))",
                 primaryGreen: "#139135",
                 primaryGreenHover: "#066921",
-                background: "hsl(var(--background))",
+                background: colors.stone[900],
                 foreground: "hsl(var(--foreground))",
                 primary: {
                     DEFAULT: "hsl(var(--primary))",
