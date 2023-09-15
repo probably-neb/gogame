@@ -9,7 +9,7 @@ var isProd = os.Getenv("ENV") == "PRODUCTION"
 
 templ Layout(title string) {
     <!doctype html>
-    <html lang="en">
+    <html lang="en" class="dark" style="color-scheme: dark">
         <head>
             <meta charset="UTF-8" />
             <title>{title}</title>
@@ -26,7 +26,7 @@ templ Layout(title string) {
                 }
             ></script>
             <script src="https://unpkg.com/htmx.org@1.9.5/dist/ext/ws.js"></script>
-            <script src="https://cdn.tailwindcss.com"></script>
+            <link rel="stylesheet" href="/assets/tailwind.css"></link>
             <script>
                 htmx.on("htmx:wsConfigSend", function(e) {
                     console.dir(e, {depth: null})
@@ -36,7 +36,7 @@ templ Layout(title string) {
                 })
             </script>
         </head>
-        <body id="body">
+        <body id="body" class="bg-background">
             { children... }
         </body>
     </html>
@@ -49,21 +49,53 @@ func RoomURL(id string, rest string) string {
     return "/rooms/" + id + rest
 }
 
+// CREDIT: shadcn-ui
+templ Button() {
+    <div class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border-ring border-4 bg-primary-foreground text-foreground hover:bg-ring h-10 px-4 py-2">
+        { children... }
+    </div>
+}
+
+var colors = []string{
+    "bg-foreground",
+    "bg-border",
+    "bg-input",
+    "bg-ring",
+    "bg-background",
+    "bg-primary",
+    "bg-primary-foreground",
+    "bg-secondary",
+    "bg-secondary-foreground",
+    "bg-destructive",
+    "bg-muted",
+    "bg-muted-foreground",
+    "bg-accent",
+    "bg-accent-foreground",
+    "bg-popover",
+    "bg-popover-foreground",
+    "bg-card",
+    "bg-card-foreground",
+};
+
 templ LandingPage() {
     @Layout("GOGAME!") {
         <div hx-boost="true">
-            <button
-                id="create-room"
-                class="rounded-md border-2 border-black"
-            >
-                <a href="/rooms/create">Create Room</a>
-            </button>
-            <button
-                id="join-room"
-                class="rounded-md border-2 border-black"
-            >
-                <a href="/rooms" hx-boost="true">Join Room</a>
-            </button>
+            @Button() { <button id="create-room"><a href="/rooms/create">Create Room</a></button> }
+            @Button() { <button id="join-room"><a href="/rooms" hx-boost="true">Join Room</a></button> }
+            if !isProd {
+                <table>
+                <tbody>
+                for _, color := range colors {
+                    <tr>
+                    <td>{color}</td>
+                    <td>
+                        <div class={"w-8 h-5 " + color}></div>
+                    </td>
+                    </tr>
+                }
+                </tbody>
+                </table>
+            }
         </div>
     }
 }
@@ -81,23 +113,33 @@ templ Modal(id string) {
 templ CreateRoomModal() {
     @Modal("create-room-modal") {
         <form class="text-small text-gray-800" hx-post="/rooms/create" hx-boost="true" hx-target="body">
-            <label for="room-name">Room Name:</label>
-            <input type="text" name="room-name" id="room-name" placeholder="Room Name" class="rounded-md border-2 border-black"></input>
-            <label for="display-name">Display Name:</label>
-            <input type="text" name="display-name" id="display-name" placeholder="Display Name" class="rounded-md border-2 border-black"></input>
-            <button id="create" type="submit" class="rounded-md border-2 border-black">Create</button>
-            <button type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"><a href="/" hx-boost="true">Cancel</a></button>
+            <div class="grid gap-y-1.5 gap-x-1.5 grid-cols-3 grid-rows-2 items-center text-foreground">
+            <label for="room-name" class="text-right">Room Name</label>
+            <input type="text" name="room-name" id="room-name" placeholder="Room Name" class="rounded-sm p-2 col-span-2"></input>
+            <label for="display-name" class="text-right">Display Name</label>
+            <input type="text" name="display-name" id="display-name" placeholder="Display Name" class="rounded-sm p-2 col-span-2"></input>
+            </div>
+            <div class="h-4"></div>
+            <div class="flex justify-around">
+            @Button() { <button type="button"><a href="/" hx-boost="true">Cancel</a></button> }
+            @Button() { <button id="create" type="submit">Create</button> }
+            </div>
         </form>
-    }
+}
 }
 
 templ JoinRoomModal() {
     @Modal("join-room-modal") {
         <form class="text-small text-gray-800" ws-send data-group="room" data-type="display-name">
-            <label for="display-name">Display Name:</label>
-            <input type="text" name="display-name" id="display-name" placeholder="Display Name" class="rounded-md border-2 border-black"></input>
-            <button id="join" type="submit" class="rounded-md border-2 border-black">Join</button>
-            <button type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"><a href="/rooms" hx-boost="true">Cancel</a></button>
+            <div class="grid gap-y-1.5 gap-x-1.5 grid-cols-3 grid-rows-1 items-center text-foreground">
+            <label for="display-name" class="text-right">Display Name:</label>
+            <input type="text" name="display-name" id="display-name" placeholder="Display Name" class="rounded-sm p-2 col-span-2"></input>
+            </div>
+            <div class="h-4"></div>
+            <div class="flex justify-around">
+            @Button() { <button id="join" type="submit">Join</button> }
+            @Button() { <button type="button"><a href="/rooms" hx-boost="true">Cancel</a></button> }
+            </div>
         </form>
     }
 }
@@ -130,7 +172,7 @@ templ GamesList(kind string) {
         <ul>
             <li>Tic-Tac-Toe
                 if kind == "host" {
-                    <button id="start-tic-tac-toe" name="play" value="tictactoe" ws-send data-group="room" data-type="play">Play!</button>
+                    @Button() { <button id="start-tic-tac-toe" name="play" value="tictactoe" ws-send data-group="room" data-type="play">Play!</button> }
                 }
             </li>
         </ul>

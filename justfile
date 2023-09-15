@@ -1,5 +1,6 @@
 build:
     templ generate
+    bun x tailwindcss -i ./assets/_index.css -o ./assets/tailwind.css
     go build
     ./gogame
 

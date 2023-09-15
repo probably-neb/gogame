@@ -153,7 +153,17 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	http.Handle("/", rt)
+    rt.HandleFunc("/assets/{asset}", func(w http.ResponseWriter, r *http.Request) {
+        asset := mux.Vars(r)["asset"]
+        path := "/assets/" +  asset
+        file, err := os.Open("."  + path)
+        if err != nil {
+            log.Printf("Error opening file: %v\n", err)
+            return
+        }
+        defer file.Close()
+        http.ServeContent(w, r, path, time.Now(), file)
+    })
 
 	rt.Use(loggingMiddleware)
 
