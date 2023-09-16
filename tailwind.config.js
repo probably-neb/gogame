@@ -2,7 +2,7 @@ const colors = require("tailwindcss/colors")
 
 /** @type {import('tailwindcss').Config} */
 export default {
-    content: ["./**.templ"],
+    content: ["./**/*.templ", "*.templ"],
     theme: {
         container: {
             center: true,
