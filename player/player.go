@@ -13,13 +13,15 @@ type Player struct {
 	conn        *websocket.Conn
 	DisplayName string
 	Send        chan templ.Component
+    SessionId   string
 }
 
-func NewPlayer(conn *websocket.Conn, name string) Player {
+func NewPlayer(conn *websocket.Conn, name string, sessionId string) Player {
 	return Player{
 		conn:        conn,
 		DisplayName: name,
 		Send:        make(chan templ.Component),
+        SessionId: sessionId,
 	}
 }
 

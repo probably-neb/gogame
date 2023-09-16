@@ -34,6 +34,14 @@ templ Layout(title string) {
                     let grp = e.detail.elt.dataset.group
                     e.detail.parameters = {type: ty, group: grp, data: e.detail.parameters}
                 })
+                htmx.on("htmx:configRequest", function(e) {
+                    let sessionInput = htmx.find('#session-id')
+                    if (!sessionInput) {
+                        return
+                    }
+                    let sessionId = sessionInput.value
+                    e.detail.headers["Session-Id"] = sessionId
+                })
             </script>
         </head>
         <body id="body" class="bg-background">
@@ -49,6 +57,10 @@ func RoomURL(id string, rest string) string {
     return "/rooms/" + id + rest
 }
 
+templ Session(sessionId string) {
+    <input type="hidden" name="session-id" id="session-id" value={sessionId}></input>
+}
+
 // CREDIT: shadcn-ui
 templ Button() {
     <div class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border-ring border-4 bg-primary-foreground text-foreground hover:bg-ring h-10 px-4 py-2">
@@ -56,7 +68,7 @@ templ Button() {
     </div>
 }
 
-var colors = []string{
+var colors = []string {
     "bg-foreground",
     "bg-border",
     "bg-input",
@@ -77,11 +89,35 @@ var colors = []string{
     "bg-card-foreground",
 };
 
-templ LandingPage() {
+templ SessionInput(displayName string) {
+    <form id="session-form" class="text-small text-gray-800" hx-post="/sessions" hx-sync="this:abort">
+        <div class="grid gap-y-1.5 gap-x-1.5 grid-cols-3 grid-rows-1 items-center text-foreground">
+        <label for="display-name" class="text-right">Display Name:</label>
+        <input
+            type="text"
+            name="display-name"
+            id="display-name"
+            if displayName != "" {
+                value={displayName}
+            }
+            hx-post="/sessions"
+            required="true"
+            class="rounded-sm p-2 col-span-2"
+            placeholder="Display Name"
+            ></input>
+        </div>
+    </form>
+}
+
+templ LandingPage(sessionId string) {
     @Layout("GOGAME!") {
-        <div hx-boost="true">
+        <div class="w-screen h-screen flex flex-col items-center justify-around">
+        @Session(sessionId)
+        @SessionInput("")
+        <div hx-boost="true" class="flex flex-row items-center justfiy-around">
             @Button() { <button id="create-room"><a href="/rooms/create">Create Room</a></button> }
-            @Button() { <button id="join-room"><a href="/rooms" hx-boost="true">Join Room</a></button> }
+            @Button() { <button id="join-room"><a href="/rooms" hx-push-url="true">Join Room</a></button> }
+        </div>
             if !isProd {
                 <table>
                 <tbody>
@@ -110,14 +146,13 @@ templ Modal(id string) {
     </div>
 }
 
-templ CreateRoomModal() {
+templ CreateRoomModal(sessionId string) {
     @Modal("create-room-modal") {
         <form class="text-small text-gray-800" hx-post="/rooms/create" hx-boost="true" hx-target="body">
-            <div class="grid gap-y-1.5 gap-x-1.5 grid-cols-3 grid-rows-2 items-center text-foreground">
+            <div class="grid gap-y-1.5 gap-x-1.5 grid-cols-3 grid-rows-1 items-center text-foreground">
             <label for="room-name" class="text-right">Room Name</label>
             <input type="text" name="room-name" id="room-name" placeholder="Room Name" class="rounded-sm p-2 col-span-2"></input>
-            <label for="display-name" class="text-right">Display Name</label>
-            <input type="text" name="display-name" id="display-name" placeholder="Display Name" class="rounded-sm p-2 col-span-2"></input>
+            @Session(sessionId)
             </div>
             <div class="h-4"></div>
             <div class="flex justify-around">
@@ -128,19 +163,10 @@ templ CreateRoomModal() {
 }
 }
 
+// TODO: further divide up session input and have join button here
 templ JoinRoomModal() {
     @Modal("join-room-modal") {
-        <form class="text-small text-gray-800" ws-send data-group="room" data-type="display-name">
-            <div class="grid gap-y-1.5 gap-x-1.5 grid-cols-3 grid-rows-1 items-center text-foreground">
-            <label for="display-name" class="text-right">Display Name:</label>
-            <input type="text" name="display-name" id="display-name" placeholder="Display Name" class="rounded-sm p-2 col-span-2"></input>
-            </div>
-            <div class="h-4"></div>
-            <div class="flex justify-around">
-            @Button() { <button id="join" type="submit">Join</button> }
-            @Button() { <button type="button"><a href="/rooms" hx-boost="true">Cancel</a></button> }
-            </div>
-        </form>
+        @SessionInput("")
     }
 }
 
@@ -179,8 +205,8 @@ templ GamesList(kind string) {
     </div>
 }
 
-templ RoomWS(roomid string, kind string) {
-    <div id="ws-connection" hx-preserve="true" hx-ext="ws" ws-connect={RoomURL(roomid, kind + "/ws")} >
+templ RoomWS(roomid string, sessionId string) {
+    <div id="ws-connection" hx-preserve="true" hx-ext="ws" ws-connect={RoomURL(roomid, sessionId + "/ws")} >
         { children...}
     </div>
 }
@@ -196,34 +222,36 @@ templ RoomPageBody(room HRoom, kind string) {
     </div>
 }
 
-templ CreateRoomPage() {
+templ CreateRoomPage(sessionId string) {
     @Layout("Create Room") {
-        @CreateRoomModal()
+        @CreateRoomModal(sessionId)
         @RoomPageBody(HRoom{}, "host")
     }
 }
 
 
-templ GuestRoomPage(room HRoom) {
+templ GuestRoomPage(room HRoom, sessionId string) {
     @Layout(room.Name) {
-        @RoomWS(room.Name, "guest") {
+        @RoomWS(room.Name, sessionId) {
             { children...}
             @RoomPageBody(room, "guest")
         }
     }
 }
 
-templ JoinRoomPage(room HRoom) {
-    @GuestRoomPage(room) {
-        @JoinRoomModal()
+templ JoinRoomPage(room HRoom, sessionId string, hasSession bool) {
+    @GuestRoomPage(room, sessionId) {
+        if !hasSession {
+            @JoinRoomModal()
+        }
     }
 }
 
 
 
-templ HostRoomPage(room HRoom) {
+templ HostRoomPage(room HRoom, sessionId string) {
     @Layout(room.Name) {
-        @RoomWS(room.Name, "host") {
+        @RoomWS(room.Name, sessionId) {
             @RoomPageBody(room, "host")
         }
     }
@@ -241,7 +269,8 @@ templ JoinRoomEntry(room HRoom) {
     <button id="join-room" class="rounded-md border-2 border-black"><a href={templ.SafeURL("/rooms/" + room.Name)} hx-boost="true">Join Room</a></button>
 }
 
-templ RoomList(rooms []HRoom) {
+templ RoomList(rooms []HRoom, sessionId string) {
+    @Session(sessionId)
     <ul>
         for _, room := range rooms {
             <li id={room.Name}>
@@ -253,8 +282,8 @@ templ RoomList(rooms []HRoom) {
 
 // TODO: use HX headers to differentiate between hx request vs normal fetch
 // to decide whether or not to render entire page or just roomslist
-templ RoomListPage(rooms []HRoom) {
+templ RoomListPage(rooms []HRoom, sessionId string) {
     @Layout("Join Room") {
-        @RoomList(rooms)
+        @RoomList(rooms, sessionId)
     }
 }

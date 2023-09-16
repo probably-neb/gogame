@@ -3,24 +3,27 @@ package main
 import (
 	"encoding/json"
 	"github.com/a-h/templ"
-	. "gogame/player"
+	"gogame/player"
 	"gogame/tictactoe"
+    "gogame/sessions"
 	"log"
 )
 
+type Player = player.Player
+type PlayerMsg = player.PlayerMsg
+
 type NewRoom struct {
 	Name     string
-	HostName string
+	HostSessionId string
 }
 
-func (nr *NewRoom) toHTMLRoom() HRoom {
-	return HRoom{Name: nr.Name, Host: nr.HostName, Guests: []string{}}
+func CreateHostHTMLRoom(roomName string, hostName string) HRoom {
+    return HRoom{Name: roomName, Host: hostName, Guests: []string{}}
 }
 
 type JoinRequest struct {
 	RoomId string
 	Player *Player
-	IsHost bool
 }
 
 type Room struct {
@@ -78,8 +81,8 @@ func (r *Room) HandleMessage(msg PlayerMsg) {
 	switch msg.Message.Type {
 	case "play":
 		var play struct {
-            Game string `json:"play"`
-        }
+			Game string `json:"play"`
+		}
 		if err := json.Unmarshal(msg.Message.Data, &play); err != nil {
 			log.Println(err)
 			return
@@ -105,7 +108,8 @@ func (r *Room) StartGame(game string) {
 }
 
 func (r *Room) HandleJoinRequest(jrq JoinRequest) {
-	if jrq.IsHost {
+    isHost := jrq.Player.SessionId == r.host.SessionId
+	if isHost {
 		jrq.Player.DisplayName = r.host.DisplayName
 		r.host = jrq.Player
 		go r.host.ListenForMessages(r.recv, r.leave)
@@ -206,18 +210,20 @@ func (r *Room) toHTMLRoom() HRoom {
 }
 
 type RoomRegistry struct {
+    SessionManager *sessions.Manager
 	rooms      map[string]*Room
 	Register   chan NewRoom
 	Unregister chan string
 	Join       chan JoinRequest
 }
 
-func newRoomRegistry() RoomRegistry {
-	return RoomRegistry{
+func newRoomRegistry(m *sessions.Manager) RoomRegistry {
+	return RoomRegistry {
 		rooms:      make(map[string]*Room),
 		Register:   make(chan NewRoom),
 		Unregister: make(chan string),
 		Join:       make(chan JoinRequest),
+        SessionManager: m,
 	}
 }
 
@@ -225,7 +231,12 @@ func (rr *RoomRegistry) run() {
 	for {
 		select {
 		case newRoom := <-rr.Register:
-			room := rr.makeRoom(newRoom.Name, newRoom.HostName)
+            hostSession := rr.SessionManager.Get(newRoom.HostSessionId)
+            if !hostSession.Exists {
+                log.Printf("tried to create room with name [%s] but there was no session for the host with session id: [%s]\n", newRoom.Name, newRoom.HostSessionId)
+                continue
+            }
+			room := rr.makeRoom(newRoom.Name, newRoom.HostSessionId, hostSession.Name)
 			rr.rooms[room.name] = &room
 			go room.run()
 		case roomId := <-rr.Unregister:
@@ -242,11 +253,12 @@ func (rr *RoomRegistry) run() {
 	}
 }
 
-func (rr *RoomRegistry) makeRoom(name string, hostName string) Room {
-	return Room{
+func (rr *RoomRegistry) makeRoom(name string, hostSessionId string, hostName string) Room {
+    host := player.NewPlayer(nil, hostName, hostSessionId)
+	return Room {
 		rr:       rr,
 		name:     name,
-		host:     &Player{DisplayName: hostName},
+		host:     &host,
 		guests:   make(map[*Player]bool),
 		join:     make(chan JoinRequest),
 		leave:    make(chan *Player),

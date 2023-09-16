@@ -1,12 +1,10 @@
 package main
 
 import (
-	"encoding/json"
-	"github.com/a-h/templ"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"gogame/htmx"
 	"gogame/player"
+    "gogame/sessions"
 	"log"
 	"net/http"
 	"os"
@@ -23,21 +21,29 @@ var upgrader = websocket.Upgrader{
 }
 
 func createRoomHandler(rr *RoomRegistry, w http.ResponseWriter, r *http.Request) {
+    sessionId := r.Header.Get("Session-Id")
+    log.Println("create room with sessionId=", sessionId)
 	switch r.Method {
 	case http.MethodGet:
-		CreateRoomPage().Render(r.Context(), w)
+		CreateRoomPage(sessionId).Render(r.Context(), w)
 	case http.MethodPost:
-		hostName := r.FormValue("display-name")
 		roomId := r.FormValue("room-name")
 		if rr.RoomExists(roomId) {
 			log.Println("error: attempt to create room that already exists:", roomId)
 			http.Error(w, "Room already exists", http.StatusBadRequest)
 			return
 		}
-		room := NewRoom{Name: roomId, HostName: hostName}
+		room := NewRoom{Name: roomId, HostSessionId: sessionId}
 		rr.Register <- room
+        hostSession := rr.SessionManager.Get(sessionId)
+        if !hostSession.Exists {
+            http.Error(w, "Host session does not exist", http.StatusBadRequest)
+            return
+        }
+        hostName := hostSession.Name
+        hroom := HRoom {Name: roomId, Host: hostName, Guests: []string{}}
 		w.Header().Set("HX-Replace-Url", "/rooms/"+roomId)
-		HostRoomPage(room.toHTMLRoom()).Render(r.Context(), w)
+		HostRoomPage(hroom, sessionId).Render(r.Context(), w)
 		log.Println("created room:", roomId)
 		// TODO: MethodDELETE
 	}
@@ -53,70 +59,47 @@ func joinRoomHandler(rr *RoomRegistry, w http.ResponseWriter, r *http.Request) {
 		log.Println(errmsg)
 		http.Error(w, errmsg, http.StatusBadRequest)
 	}
-	JoinRoomPage(rr.Room(roomId).toHTMLRoom()).Render(r.Context(), w)
+    sessionId := r.Header.Get("Session-Id")
+    hasSession := true
+    if sessionId == "" {
+        // TODO: handle by asking player for name in modal
+        log.Println("player tried to join room without session id")
+        hasSession = false
+    }
+	JoinRoomPage(rr.Room(roomId).toHTMLRoom(), sessionId, hasSession).Render(r.Context(), w)
 }
 
 func wsHandler(rr *RoomRegistry, w http.ResponseWriter, r *http.Request) {
 	roomId := mux.Vars(r)["roomid"]
+    sessionId := mux.Vars(r)["sessionid"]
 	if !rr.RoomExists(roomId) {
 		log.Println("error: attempt to connect to non-existant room:", roomId)
 		http.Error(w, "error: attempt to connect to non-existant room:", http.StatusBadRequest)
 	}
-	kind := mux.Vars(r)["kind"]
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println("failed to upgrade connection:", err)
 		http.Error(w, "failed to upgrade connection", http.StatusInternalServerError)
 	}
-	switch kind {
-	case "host":
-		p := player.NewPlayer(conn, "")
-		rr.Join <- JoinRequest{RoomId: roomId, IsHost: true, Player: &p}
-	case "guest":
-		// NOTE: must be in go routine because this handler must respond
-		// for the websocket connection to be established
-		go waitForGuestName(rr, roomId, conn)
-	}
-}
-
-func waitForGuestName(rr *RoomRegistry, roomId string, conn *websocket.Conn) {
-	// TODO: redirect to home in case of error
-	type SetNameMsg struct {
-		Headers htmx.Headers `json:"HEADERS"`
-		Group   string       `json:"group"`
-		Type    string       `json:"type"`
-		Data    struct {
-			DisplayName string `json:"display-name"`
-		} `json:"data"`
-	}
-	// block until name message is recieved
-	_, msgBytes, err := conn.ReadMessage()
-	if err != nil {
-		log.Println("error: failed to read name message while joining room:", roomId)
-		// TODO: conn.WriteCloseMessage
-	}
-	var msg SetNameMsg
-	// TODO: error if name is ""
-	if err = json.Unmarshal(msgBytes, &msg); err != nil {
-		errmsg := "error: failed to decode set-name message while joining room: " + roomId
-		log.Printf("%s: %v\n", errmsg, err)
-		// TODO: conn.WriteCloseMessage
-	}
-	if msg.Type != "display-name" {
-		log.Println("error: recieved message of type", msg.Type, "but expected display-name")
-		return
-	}
-	p := player.NewPlayer(conn, msg.Data.DisplayName)
-	rr.Join <- JoinRequest{RoomId: roomId, IsHost: false, Player: &p}
+    playerSession := rr.SessionManager.Get(sessionId)
+    p := player.NewPlayer(conn, playerSession.Name, sessionId)
+    rr.Join <- JoinRequest{RoomId: roomId,Player: &p}
 }
 
 func roomBrowserHandler(rr *RoomRegistry, w http.ResponseWriter, r *http.Request) {
 	roomInfos := rr.GetHTMLRooms()
 	// in case of hx-boost don't render (and send!) the whole page
 	if r.Header.Get("HX-Request") == "true" {
-		RoomList(roomInfos).Render(r.Context(), w)
+        sessionId := r.Header.Get("Session-Id")
+        if sessionId == "" {
+            errmsg := "error: hx-request to /rooms but no sessionId included in request"
+            log.Printf(errmsg)
+            http.Error(w, errmsg, http.StatusBadRequest)
+        }
+		RoomList(roomInfos, sessionId).Render(r.Context(), w)
 	} else {
-		RoomListPage(roomInfos).Render(r.Context(), w)
+        sessionId := rr.SessionManager.NewSession()
+		RoomListPage(roomInfos, sessionId).Render(r.Context(), w)
 	}
 }
 
@@ -127,8 +110,34 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func landingHandler(m *sessions.Manager, w http.ResponseWriter, r *http.Request) {
+    sessionId := m.NewSession()
+    if sessionId == "" {
+        log.Println("failed to generate session id")
+        http.Error(w, "Failed to generate session id", http.StatusInternalServerError)
+        return
+    }
+    LandingPage(sessionId).Render(r.Context(), w)
+}
+
+func handleSessionUpdate(m *sessions.Manager, w http.ResponseWriter, r *http.Request) {
+    sessionId := r.Header.Get("Session-Id")
+    name := r.FormValue("display-name")
+    err := m.Set(sessionId, "Name", name)
+    if err != nil {
+        log.Println(r)
+        log.Println(err)
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    log.Printf("set player with sessionid=%s name to %s\n", sessionId, name)
+    SessionInput(name).Render(r.Context(), w)
+
+}
+
 func main() {
-	rr := newRoomRegistry()
+    m := sessions.NewManager()
+	rr := newRoomRegistry(m)
 	go rr.run()
 	rrwrap := func(handler func(reg *RoomRegistry, w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -137,13 +146,18 @@ func main() {
 	}
 	rt := mux.NewRouter()
 
-	rt.Handle("/", templ.Handler(LandingPage()))
+	rt.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        landingHandler(m, w, r)
+    })
+    rt.HandleFunc("/sessions", func(w http.ResponseWriter, r *http.Request) {
+        handleSessionUpdate(m, w, r)
+    })
 	rt.HandleFunc("/rooms", rrwrap(roomBrowserHandler))
 	rt.HandleFunc("/rooms/create", rrwrap(createRoomHandler))
 
 	rmrt := rt.PathPrefix("/rooms/{roomid}").Subrouter()
 	rmrt.HandleFunc("", rrwrap(joinRoomHandler))
-	rmrt.HandleFunc("/{kind}/ws", rrwrap(wsHandler))
+	rmrt.HandleFunc("/{sessionid}/ws", rrwrap(wsHandler))
 
 	// helper function to do hmtx client side actions (like hx-push-url, or hx-swap="delete")
 	// especially when using a websocket connection that cannot send responses in the same way
@@ -153,17 +167,17 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 	})
 
-    rt.HandleFunc("/assets/{asset}", func(w http.ResponseWriter, r *http.Request) {
-        asset := mux.Vars(r)["asset"]
-        path := "/assets/" +  asset
-        file, err := os.Open("."  + path)
-        if err != nil {
-            log.Printf("Error opening file: %v\n", err)
-            return
-        }
-        defer file.Close()
-        http.ServeContent(w, r, path, time.Now(), file)
-    })
+	rt.HandleFunc("/assets/{asset}", func(w http.ResponseWriter, r *http.Request) {
+		asset := mux.Vars(r)["asset"]
+		path := "/assets/" + asset
+		file, err := os.Open("." + path)
+		if err != nil {
+			log.Printf("Error opening file: %v\n", err)
+			return
+		}
+		defer file.Close()
+		http.ServeContent(w, r, path, time.Now(), file)
+	})
 
 	rt.Use(loggingMiddleware)
 
