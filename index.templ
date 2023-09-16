@@ -232,18 +232,18 @@ templ CreateRoomPage(sessionId string) {
 
 templ GuestRoomPage(room HRoom, sessionId string) {
     @Layout(room.Name) {
+        @Session(sessionId)
         @RoomWS(room.Name, sessionId) {
-            { children...}
             @RoomPageBody(room, "guest")
         }
     }
 }
 
-templ JoinRoomPage(room HRoom, sessionId string, hasSession bool) {
-    @GuestRoomPage(room, sessionId) {
-        if !hasSession {
-            @JoinRoomModal()
-        }
+templ JoinRoomPage(room HRoom, sessionId string) {
+    @Layout(room.Name) {
+        @Session(sessionId)
+        @JoinRoomModal()
+        @RoomPageBody(room, "guest")
     }
 }
 
@@ -251,6 +251,7 @@ templ JoinRoomPage(room HRoom, sessionId string, hasSession bool) {
 
 templ HostRoomPage(room HRoom, sessionId string) {
     @Layout(room.Name) {
+        @Session(sessionId)
         @RoomWS(room.Name, sessionId) {
             @RoomPageBody(room, "host")
         }

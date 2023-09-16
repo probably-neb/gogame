@@ -108,14 +108,17 @@ func (r *Room) StartGame(game string) {
 }
 
 func (r *Room) HandleJoinRequest(jrq JoinRequest) {
+    // FIXME: host name not appearing in room (may be in server.go createRoomHandler)
     isHost := jrq.Player.SessionId == r.host.SessionId
 	if isHost {
+        log.Println("connecting host with sessionId:", r.host.SessionId, "to room", r.name)
 		jrq.Player.DisplayName = r.host.DisplayName
 		r.host = jrq.Player
 		go r.host.ListenForMessages(r.recv, r.leave)
 		go r.host.WriteMessages()
 		return
 	}
+    log.Println("connecting guest", jrq.Player.DisplayName, "to room:", r.name)
 
 	guest := jrq.Player
 	go guest.WriteMessages()
@@ -231,8 +234,8 @@ func (rr *RoomRegistry) run() {
 	for {
 		select {
 		case newRoom := <-rr.Register:
-            hostSession := rr.SessionManager.Get(newRoom.HostSessionId)
-            if !hostSession.Exists {
+            hostSession, ok := rr.SessionManager.Get(newRoom.HostSessionId)
+            if !ok {
                 log.Printf("tried to create room with name [%s] but there was no session for the host with session id: [%s]\n", newRoom.Name, newRoom.HostSessionId)
                 continue
             }
@@ -284,7 +287,8 @@ func (rr *RoomRegistry) GetHTMLRooms() []HRoom {
 }
 
 func (rr *RoomRegistry) RoomExists(roomId string) bool {
-	return roomId != "" && rr.rooms[roomId] != nil
+    _, ok := rr.rooms[roomId]
+	return roomId != "" && ok
 }
 
 func (rr *RoomRegistry) Room(roomId string) *Room {

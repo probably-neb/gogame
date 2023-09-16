@@ -27,14 +27,15 @@ func (m *Manager) NewSession() string {
     id := base64.URLEncoding.EncodeToString(b)
     m.lock.Lock()
     defer m.lock.Unlock()
-    m.sessions[id] = Session{Exists: true}
+    m.sessions[id] = Session{}
 	return id
 }
 
-func (m *Manager) Get(id string) Session {
+func (m *Manager) Get(id string) (Session, bool) {
     m.lock.RLock()
     defer m.lock.RUnlock()
-    return m.sessions[id]
+    session, ok := m.sessions[id]
+    return session, ok
 }
 
 func (m *Manager) Set(id string, field string, value any) error {
@@ -45,8 +46,8 @@ func (m *Manager) Set(id string, field string, value any) error {
         if !ok {
             return errors.New("tried to set session var name to non string value")
         }
-        session := m.sessions[id]
-        if !session.Exists {
+        session, ok := m.sessions[id]
+        if !ok {
             return errors.New("session with sessionId="+ id+ " does not exist")
         }
         session.Name = value
@@ -56,7 +57,5 @@ func (m *Manager) Set(id string, field string, value any) error {
 }
 
 type Session struct {
-    // will be false
-    Exists bool
 	Name string
 }
