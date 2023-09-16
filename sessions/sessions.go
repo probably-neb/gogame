@@ -10,12 +10,12 @@ import (
 
 type Manager struct {
     lock sync.RWMutex
-	sessions map[string]Session
+	sessions map[string]*Session
 }
 
 func NewManager() *Manager {
 	return &Manager{
-		sessions: make(map[string]Session),
+		sessions: make(map[string]*Session),
 	}
 }
 
@@ -27,7 +27,7 @@ func (m *Manager) NewSession() string {
     id := base64.URLEncoding.EncodeToString(b)
     m.lock.Lock()
     defer m.lock.Unlock()
-    m.sessions[id] = Session{}
+    m.sessions[id] = &Session{}
 	return id
 }
 
@@ -35,7 +35,7 @@ func (m *Manager) Get(id string) (Session, bool) {
     m.lock.RLock()
     defer m.lock.RUnlock()
     session, ok := m.sessions[id]
-    return session, ok
+    return *session, ok
 }
 
 func (m *Manager) Set(id string, field string, value any) error {
