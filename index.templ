@@ -109,11 +109,11 @@ templ SessionInput(displayName string) {
     </form>
 }
 
-templ LandingPage(sessionId string) {
+templ LandingPage(sessionId string, displayName string) {
     @Layout("GOGAME!") {
         <div class="w-screen h-screen flex flex-col items-center justify-around">
         @Session(sessionId)
-        @SessionInput("")
+        @SessionInput(displayName)
         <div hx-boost="true" class="flex flex-row items-center justfiy-around">
             @Button() { <button id="create-room"><a href="/rooms/create">Create Room</a></button> }
             @Button() { <button id="join-room"><a href="/rooms" hx-push-url="true">Join Room</a></button> }

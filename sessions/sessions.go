@@ -35,7 +35,10 @@ func (m *Manager) Get(id string) (Session, bool) {
     m.lock.RLock()
     defer m.lock.RUnlock()
     session, ok := m.sessions[id]
-    return *session, ok
+    if ok {
+        return *session, ok
+    }
+    return Session{}, ok
 }
 
 func (m *Manager) Set(id string, field string, value any) error {

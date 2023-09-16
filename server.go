@@ -59,7 +59,15 @@ func joinRoomHandler(rr *RoomRegistry, w http.ResponseWriter, r *http.Request) {
 	if !rr.RoomExists(roomId) {
 		errmsg := "error: tried to join non-existant room: " + roomId
 		log.Println(errmsg)
-		http.Error(w, errmsg, http.StatusBadRequest)
+        reqSID := r.Header.Get("Session-Id")
+        _, ok := rr.SessionManager.Get(reqSID)
+        if ok {
+            // use HTMX redirect to maintain existing sessionId
+            w.Header().Set("HX-Location", "/")
+            return
+        }
+        http.Redirect(w, r, "/", http.StatusSeeOther)
+        return
 	}
     sessionId := r.Header.Get("Session-Id")
     // FIXME: joining room without session doesn't prompt for name
@@ -123,13 +131,15 @@ func loggingMiddleware(next http.Handler) http.Handler {
 }
 
 func landingHandler(m *sessions.Manager, w http.ResponseWriter, r *http.Request) {
-    sessionId := m.NewSession()
-    if sessionId == "" {
-        log.Println("failed to generate session id")
-        http.Error(w, "Failed to generate session id", http.StatusInternalServerError)
-        return
+    sessionId := r.Header.Get("Session-Id")
+    session, ok := m.Get(sessionId)
+    displayName := ""
+    if !ok {
+        sessionId = m.NewSession()
+    } else {
+        displayName = session.Name
     }
-    LandingPage(sessionId).Render(r.Context(), w)
+    LandingPage(sessionId, displayName).Render(r.Context(), w)
 }
 
 func handleSessionUpdate(m *sessions.Manager, w http.ResponseWriter, r *http.Request) {

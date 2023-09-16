@@ -259,7 +259,7 @@ func SessionInput(displayName string) templ.Component {
 	})
 }
 
-func LandingPage(sessionId string) templ.Component {
+func LandingPage(sessionId string, displayName string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -286,7 +286,7 @@ func LandingPage(sessionId string) templ.Component {
 			if err != nil {
 				return err
 			}
-			err = SessionInput("").Render(ctx, templBuffer)
+			err = SessionInput(displayName).Render(ctx, templBuffer)
 			if err != nil {
 				return err
 			}
