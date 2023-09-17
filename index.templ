@@ -100,10 +100,15 @@ templ SessionInput(displayName string) {
             if displayName != "" {
                 value={displayName}
             }
+            data-default={displayName}
+            hx-target="#session-form"
+            hx-swap="outerHTML"
             hx-post="/sessions"
             required="true"
             class="rounded-sm p-2 col-span-2"
             placeholder="Display Name"
+            hx-on:focus="if(this.value === this.dataset.default) {this.value = ''}"
+            hx-on:blur="if(this.value === '') {this.value = this.dataset.default}"
             ></input>
         </div>
     </form>

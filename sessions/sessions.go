@@ -6,6 +6,7 @@ import (
     "encoding/base64"
     "sync"
     "errors"
+	"gogame/random-name"
 )
 
 type Manager struct {
@@ -27,7 +28,8 @@ func (m *Manager) NewSession() string {
     id := base64.URLEncoding.EncodeToString(b)
     m.lock.Lock()
     defer m.lock.Unlock()
-    m.sessions[id] = &Session{}
+	name := randomName.RandomName()
+	m.sessions[id] = &Session{Name: name}
 	return id
 }
 

@@ -131,15 +131,15 @@ func loggingMiddleware(next http.Handler) http.Handler {
 }
 
 func landingHandler(m *sessions.Manager, w http.ResponseWriter, r *http.Request) {
-    sessionId := r.Header.Get("Session-Id")
-    session, ok := m.Get(sessionId)
-    displayName := ""
-    if !ok {
-        sessionId = m.NewSession()
-    } else {
-        displayName = session.Name
-    }
-    LandingPage(sessionId, displayName).Render(r.Context(), w)
+	sessionId := r.Header.Get("Session-Id")
+	session, ok := m.Get(sessionId)
+	if !ok {
+		sessionId = m.NewSession()
+		session, _ = m.Get(sessionId)
+	}
+	displayName := session.Name
+
+	LandingPage(sessionId, displayName).Render(r.Context(), w)
 }
 
 func handleSessionUpdate(m *sessions.Manager, w http.ResponseWriter, r *http.Request) {

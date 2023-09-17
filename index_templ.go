@@ -248,7 +248,15 @@ func SessionInput(displayName string) templ.Component {
 				return err
 			}
 		}
-		_, err = templBuffer.WriteString(" hx-post=\"/sessions\" required=\"true\" class=\"rounded-sm p-2 col-span-2\" placeholder=\"Display Name\"></div></form>")
+		_, err = templBuffer.WriteString(" data-default=\"")
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString(templ.EscapeString(displayName))
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("\" hx-target=\"#session-form\" hx-swap=\"outerHTML\" hx-post=\"/sessions\" required=\"true\" class=\"rounded-sm p-2 col-span-2\" placeholder=\"Display Name\" hx-on:focus=\"if(this.value === this.dataset.default) {this.value = &#39;&#39;}\" hx-on:blur=\"if(this.value === &#39;&#39;) {this.value = this.dataset.default}\"></div></form>")
 		if err != nil {
 			return err
 		}
