@@ -75,7 +75,8 @@ func joinRoomHandler(rr *RoomRegistry, w http.ResponseWriter, r *http.Request) {
 		// TODO: handle by asking player for name in modal
 		log.Println("player tried to join room without session id")
 		sessionId = rr.SessionManager.NewSession()
-		JoinRoomPage(rr.Room(roomId).toHTMLRoom(), sessionId).Render(r.Context(), w)
+        session, _ := rr.SessionManager.Get(sessionId)
+		JoinRoomPage(rr.Room(roomId).toHTMLRoom(), sessionId, session.Name).Render(r.Context(), w)
 		return
 	}
 	GuestRoomPage(rr.Room(roomId).toHTMLRoom(), sessionId).Render(r.Context(), w)

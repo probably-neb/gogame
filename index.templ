@@ -168,13 +168,6 @@ templ CreateRoomModal(sessionId string) {
 }
 }
 
-// TODO: further divide up session input and have join button here
-templ JoinRoomModal() {
-    @Modal("join-room-modal") {
-        @SessionInput("")
-    }
-}
-
 // TODO: remove redeclaration of Room, make Room have public fields instead
 type HRoom struct {
     Name string
@@ -244,15 +237,21 @@ templ GuestRoomPage(room HRoom, sessionId string) {
     }
 }
 
-templ JoinRoomPage(room HRoom, sessionId string) {
-    @Layout(room.Name) {
-        @Session(sessionId)
-        @JoinRoomModal()
-        @RoomPageBody(room, "guest")
+// TODO: further divide up session input and have join button here
+templ JoinRoomModal(displayName string) {
+    @Modal("join-room-modal") {
+        @SessionInput(displayName)
+        @Button() { <button hx-post="/sessions" hx-include="#session-form">Join</button>}
     }
 }
 
-
+templ JoinRoomPage(room HRoom, sessionId string, displayName string) {
+    @Layout(room.Name) {
+        @Session(sessionId)
+        @JoinRoomModal(displayName)
+        @RoomPageBody(room, "guest")
+    }
+}
 
 templ HostRoomPage(room HRoom, sessionId string) {
     @Layout(room.Name) {
@@ -272,7 +271,7 @@ templ JoinRoomEntry(room HRoom) {
     <h2>Host:</h2>
     <p>{room.Host}</p>
     <h2>Guests: {fmt.Sprint(len(room.Guests))}</h2>
-    <button id="join-room" class="rounded-md border-2 border-black"><a href={templ.SafeURL("/rooms/" + room.Name)} hx-boost="true">Join Room</a></button>
+    @Button() {<button id="join-room" class="rounded-md border-2 border-black"><a href={templ.SafeURL("/rooms/" + room.Name)} hx-boost="true">Join Room</a></button>}
 }
 
 templ RoomList(rooms []HRoom, sessionId string) {
