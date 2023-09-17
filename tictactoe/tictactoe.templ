@@ -7,16 +7,18 @@ templ Box(id string, symbol *rune) {
         }
         name="cell"
         id={id}
-        class="bg-gray-300 h-16 flex items-center justify-center text-4xl font-bold cursor-pointer"
+        class="bg-muted flex items-center justify-center text-8xl font-bold cursor-pointer w-full aspect-square text-primary"
     >
         if symbol != nil {
             {string(*symbol)}
+        } else {
+            {" "}
         }
     </div>
 }
 
 templ Board() {
-    <div id="board" class="grid grid-cols-3 gap-2">
+    <div id="board" class="grid grid-cols-3 gap-2 aspect-square w-3/5">
             @Box("cell-1", nil)
             @Box("cell-2", nil)
             @Box("cell-3", nil)
@@ -32,7 +34,8 @@ templ Board() {
 templ Game() {
     <div id="ws-connection" hx-swap-oob="innerHTML">
         <h1 class="text-2xl font-semibold mb-4">Tic-Tac-Toe</h1>
-        @Board()
-        <button class="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Reset</button>
+        <div id="board-container" class="flex items-center justify-center">
+            @Board()
+        </div>
     </div>
 }

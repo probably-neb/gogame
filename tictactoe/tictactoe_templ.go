@@ -40,13 +40,19 @@ func Box(id string, symbol *rune) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("\" class=\"bg-gray-300 h-16 flex items-center justify-center text-4xl font-bold cursor-pointer\">")
+		_, err = templBuffer.WriteString("\" class=\"bg-muted flex items-center justify-center text-8xl font-bold cursor-pointer w-full aspect-square text-primary\">")
 		if err != nil {
 			return err
 		}
 		if symbol != nil {
 			var var_2 string = string(*symbol)
 			_, err = templBuffer.WriteString(templ.EscapeString(var_2))
+			if err != nil {
+				return err
+			}
+		} else {
+			var var_3 string = " "
+			_, err = templBuffer.WriteString(templ.EscapeString(var_3))
 			if err != nil {
 				return err
 			}
@@ -70,12 +76,12 @@ func Board() templ.Component {
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_3 := templ.GetChildren(ctx)
-		if var_3 == nil {
-			var_3 = templ.NopComponent
+		var_4 := templ.GetChildren(ctx)
+		if var_4 == nil {
+			var_4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, err = templBuffer.WriteString("<div id=\"board\" class=\"grid grid-cols-3 gap-2\">")
+		_, err = templBuffer.WriteString("<div id=\"board\" class=\"grid grid-cols-3 gap-2 aspect-square w-3/5\">")
 		if err != nil {
 			return err
 		}
@@ -134,21 +140,21 @@ func Game() templ.Component {
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_4 := templ.GetChildren(ctx)
-		if var_4 == nil {
-			var_4 = templ.NopComponent
+		var_5 := templ.GetChildren(ctx)
+		if var_5 == nil {
+			var_5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		_, err = templBuffer.WriteString("<div id=\"ws-connection\" hx-swap-oob=\"innerHTML\"><h1 class=\"text-2xl font-semibold mb-4\">")
 		if err != nil {
 			return err
 		}
-		var_5 := `Tic-Tac-Toe`
-		_, err = templBuffer.WriteString(var_5)
+		var_6 := `Tic-Tac-Toe`
+		_, err = templBuffer.WriteString(var_6)
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</h1>")
+		_, err = templBuffer.WriteString("</h1><div id=\"board-container\" class=\"flex items-center justify-center\">")
 		if err != nil {
 			return err
 		}
@@ -156,12 +162,12 @@ func Game() templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("<button class=\"mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md\">")
+		_, err = templBuffer.WriteString("</div><button class=\"mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md\">")
 		if err != nil {
 			return err
 		}
-		var_6 := `Reset`
-		_, err = templBuffer.WriteString(var_6)
+		var_7 := `Reset`
+		_, err = templBuffer.WriteString(var_7)
 		if err != nil {
 			return err
 		}
