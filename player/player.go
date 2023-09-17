@@ -13,7 +13,7 @@ type Player struct {
 	conn        *websocket.Conn
 	DisplayName string
 	Send        chan templ.Component
-    SessionId   string
+	SessionId   string
 }
 
 func NewPlayer(conn *websocket.Conn, name string, sessionId string) Player {
@@ -21,7 +21,7 @@ func NewPlayer(conn *websocket.Conn, name string, sessionId string) Player {
 		conn:        conn,
 		DisplayName: name,
 		Send:        make(chan templ.Component),
-        SessionId: sessionId,
+		SessionId:   sessionId,
 	}
 }
 

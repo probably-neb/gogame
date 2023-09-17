@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"github.com/a-h/templ"
 	"gogame/player"
+	"gogame/sessions"
 	"gogame/tictactoe"
-    "gogame/sessions"
 	"log"
 )
 
@@ -13,12 +13,12 @@ type Player = player.Player
 type PlayerMsg = player.PlayerMsg
 
 type NewRoom struct {
-	Name     string
+	Name          string
 	HostSessionId string
 }
 
 func CreateHostHTMLRoom(roomName string, hostName string) HRoom {
-    return HRoom{Name: roomName, Host: hostName, Guests: []string{}}
+	return HRoom{Name: roomName, Host: hostName, Guests: []string{}}
 }
 
 type JoinRequest struct {
@@ -108,17 +108,17 @@ func (r *Room) StartGame(game string) {
 }
 
 func (r *Room) HandleJoinRequest(jrq JoinRequest) {
-    // FIXME: host name not appearing in room (may be in server.go createRoomHandler)
-    isHost := jrq.Player.SessionId == r.host.SessionId
+	// FIXME: host name not appearing in room (may be in server.go createRoomHandler)
+	isHost := jrq.Player.SessionId == r.host.SessionId
 	if isHost {
-        log.Println("connecting host with sessionId:", r.host.SessionId, "to room", r.name)
+		log.Println("connecting host with sessionId:", r.host.SessionId, "to room", r.name)
 		jrq.Player.DisplayName = r.host.DisplayName
 		r.host = jrq.Player
 		go r.host.ListenForMessages(r.recv, r.leave)
 		go r.host.WriteMessages()
 		return
 	}
-    log.Println("connecting guest", jrq.Player.DisplayName, "to room:", r.name)
+	log.Println("connecting guest", jrq.Player.DisplayName, "to room:", r.name)
 
 	guest := jrq.Player
 	go guest.WriteMessages()
@@ -213,20 +213,20 @@ func (r *Room) toHTMLRoom() HRoom {
 }
 
 type RoomRegistry struct {
-    SessionManager *sessions.Manager
-	rooms      map[string]*Room
-	Register   chan NewRoom
-	Unregister chan string
-	Join       chan JoinRequest
+	SessionManager *sessions.Manager
+	rooms          map[string]*Room
+	Register       chan NewRoom
+	Unregister     chan string
+	Join           chan JoinRequest
 }
 
 func newRoomRegistry(m *sessions.Manager) RoomRegistry {
-	return RoomRegistry {
-		rooms:      make(map[string]*Room),
-		Register:   make(chan NewRoom),
-		Unregister: make(chan string),
-		Join:       make(chan JoinRequest),
-        SessionManager: m,
+	return RoomRegistry{
+		rooms:          make(map[string]*Room),
+		Register:       make(chan NewRoom),
+		Unregister:     make(chan string),
+		Join:           make(chan JoinRequest),
+		SessionManager: m,
 	}
 }
 
@@ -234,11 +234,11 @@ func (rr *RoomRegistry) run() {
 	for {
 		select {
 		case newRoom := <-rr.Register:
-            hostSession, ok := rr.SessionManager.Get(newRoom.HostSessionId)
-            if !ok {
-                log.Printf("tried to create room with name [%s] but there was no session for the host with session id: [%s]\n", newRoom.Name, newRoom.HostSessionId)
-                continue
-            }
+			hostSession, ok := rr.SessionManager.Get(newRoom.HostSessionId)
+			if !ok {
+				log.Printf("tried to create room with name [%s] but there was no session for the host with session id: [%s]\n", newRoom.Name, newRoom.HostSessionId)
+				continue
+			}
 			room := rr.makeRoom(newRoom.Name, newRoom.HostSessionId, hostSession.Name)
 			rr.rooms[room.name] = &room
 			go room.run()
@@ -257,8 +257,8 @@ func (rr *RoomRegistry) run() {
 }
 
 func (rr *RoomRegistry) makeRoom(name string, hostSessionId string, hostName string) Room {
-    host := player.NewPlayer(nil, hostName, hostSessionId)
-	return Room {
+	host := player.NewPlayer(nil, hostName, hostSessionId)
+	return Room{
 		rr:       rr,
 		name:     name,
 		host:     &host,
@@ -287,7 +287,7 @@ func (rr *RoomRegistry) GetHTMLRooms() []HRoom {
 }
 
 func (rr *RoomRegistry) RoomExists(roomId string) bool {
-    _, ok := rr.rooms[roomId]
+	_, ok := rr.rooms[roomId]
 	return roomId != "" && ok
 }
 
