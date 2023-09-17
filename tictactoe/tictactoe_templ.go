@@ -22,6 +22,11 @@ func Box(id string, symbol *rune) templ.Component {
 			var_1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
+		var var_2 = []any{"bg-muted", "flex", "items-center", "justify-center", "text-8xl", "font-bold", templ.KV("cursor-pointer", symbol == nil), templ.KV("cursor-default", symbol != nil), "w-full", "aspect-square", "text-primary"}
+		err = templ.RenderCSSItems(ctx, templBuffer, var_2...)
+		if err != nil {
+			return err
+		}
 		_, err = templBuffer.WriteString("<div")
 		if err != nil {
 			return err
@@ -40,18 +45,20 @@ func Box(id string, symbol *rune) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("\" class=\"bg-muted flex items-center justify-center text-8xl font-bold cursor-pointer w-full aspect-square text-primary\">")
+		_, err = templBuffer.WriteString("\" class=\"")
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_2).String()))
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("\">")
 		if err != nil {
 			return err
 		}
 		if symbol != nil {
-			var var_2 string = string(*symbol)
-			_, err = templBuffer.WriteString(templ.EscapeString(var_2))
-			if err != nil {
-				return err
-			}
-		} else {
-			var var_3 string = " "
+			var var_3 string = string(*symbol)
 			_, err = templBuffer.WriteString(templ.EscapeString(var_3))
 			if err != nil {
 				return err
@@ -85,39 +92,39 @@ func Board() templ.Component {
 		if err != nil {
 			return err
 		}
-		err = Box("cell-1", nil).Render(ctx, templBuffer)
+		err = Box("c0", nil).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("cell-2", nil).Render(ctx, templBuffer)
+		err = Box("c1", nil).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("cell-3", nil).Render(ctx, templBuffer)
+		err = Box("c2", nil).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("cell-4", nil).Render(ctx, templBuffer)
+		err = Box("c3", nil).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("cell-5", nil).Render(ctx, templBuffer)
+		err = Box("c4", nil).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("cell-6", nil).Render(ctx, templBuffer)
+		err = Box("c5", nil).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("cell-7", nil).Render(ctx, templBuffer)
+		err = Box("c6", nil).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("cell-8", nil).Render(ctx, templBuffer)
+		err = Box("c7", nil).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("cell-9", nil).Render(ctx, templBuffer)
+		err = Box("c8", nil).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
@@ -162,16 +169,7 @@ func Game() templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</div><button class=\"mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md\">")
-		if err != nil {
-			return err
-		}
-		var_7 := `Reset`
-		_, err = templBuffer.WriteString(var_7)
-		if err != nil {
-			return err
-		}
-		_, err = templBuffer.WriteString("</button></div>")
+		_, err = templBuffer.WriteString("</div></div>")
 		if err != nil {
 			return err
 		}

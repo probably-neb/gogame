@@ -7,27 +7,25 @@ templ Box(id string, symbol *rune) {
         }
         name="cell"
         id={id}
-        class="bg-muted flex items-center justify-center text-8xl font-bold cursor-pointer w-full aspect-square text-primary"
+        class={"bg-muted", "flex", "items-center", "justify-center", "text-8xl", "font-bold", templ.KV("cursor-pointer", symbol == nil), templ.KV("cursor-default", symbol != nil), "w-full", "aspect-square", "text-primary"}
     >
         if symbol != nil {
             {string(*symbol)}
-        } else {
-            {" "}
         }
     </div>
 }
 
 templ Board() {
     <div id="board" class="grid grid-cols-3 gap-2 aspect-square w-3/5">
-            @Box("cell-1", nil)
-            @Box("cell-2", nil)
-            @Box("cell-3", nil)
-            @Box("cell-4", nil)
-            @Box("cell-5", nil)
-            @Box("cell-6", nil)
-            @Box("cell-7", nil)
-            @Box("cell-8", nil)
-            @Box("cell-9", nil)
+            @Box("c0", nil)
+            @Box("c1", nil)
+            @Box("c2", nil)
+            @Box("c3", nil)
+            @Box("c4", nil)
+            @Box("c5", nil)
+            @Box("c6", nil)
+            @Box("c7", nil)
+            @Box("c8", nil)
     </div>
 }
 
