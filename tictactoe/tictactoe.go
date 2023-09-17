@@ -36,43 +36,43 @@ func (g *GameBoard) place(cellIdStr string, sym Symbol) {
     g.cells[cellId] = sym
 }
 
-func (g *GameBoard) checkForWins() *Symbol {
+func (g *GameBoard) checkForWins() (*Symbol, int, int, int) {
     eq := func(x int, y int, z int) bool {
         return g.cells[x] == g.cells[y] && g.cells[y] == g.cells[z] && g.cells[x] != 0
     }
     // top row
     if eq(0, 1, 2) {
-        return &g.cells[0]
+        return &g.cells[0], 0, 1, 2
     }
     // middle row
     if eq(3, 4, 5) {
-        return &g.cells[3]
+        return &g.cells[3], 3, 4, 5
     }
     // bottom row
     if eq(6, 7, 8) {
-        return &g.cells[6]
+        return &g.cells[6], 6, 7, 8
     }
     // left column
     if eq(0, 3, 6) {
-        return &g.cells[0]
+        return &g.cells[0], 0, 3, 6
     }
     // middle column
     if eq(1, 4, 7) {
-        return &g.cells[1]
+        return &g.cells[1], 1, 4, 7
     }
     // right column
     if eq(2, 5, 8) {
-        return &g.cells[2]
+        return &g.cells[2], 2, 5, 8
     }
     // tl->br diagonal
     if eq(0, 4, 8) {
-        return &g.cells[0]
+        return &g.cells[0], 0, 4, 8
     }
     // tr->bl diagonal
     if eq(2, 4, 6) {
-        return &g.cells[2]
+        return &g.cells[2], 2, 4, 6
     }
-    return nil
+    return nil, 0, 0, 0
 }
 
 func listenForMoves(msgs chan player.PlayerMsg, moves chan Move) {
@@ -106,7 +106,11 @@ func Start(host *Player, guest *Player, msgs chan player.PlayerMsg, exit chan st
     board := GameBoard{}
 	go listenForMoves(msgs, moves)
 	turn := X
+    done := false
 	for {
+        if (done) {
+            continue
+        }
 		move := <-moves
 		symbol := symbols[move.player]
 		if symbol != turn {
@@ -121,16 +125,18 @@ func Start(host *Player, guest *Player, msgs chan player.PlayerMsg, exit chan st
 			log.Println("host's turn")
 			turn = symbols[host]
 		}
-		symbolRune := rune(symbol)
-		newBox := Box(move.cell, &symbolRune)
+		newBox := Box(move.cell, symbol)
 		host.Send <- newBox
 		guest.Send <- newBox
 
         board.place(move.cell, symbol)
-        winner := board.checkForWins()
+        winner, a, b, c := board.checkForWins()
         if winner == nil {
            continue
         }
+        winBoard := WinBoard(board.cells, [3]int{a,b,c})
+        host.Send <- winBoard
+        guest.Send <- winBoard
         if *winner == symbols[host] {
             log.Println("host won", board.cells)
         } else {

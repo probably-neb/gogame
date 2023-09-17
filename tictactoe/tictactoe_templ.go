@@ -9,7 +9,7 @@ import "context"
 import "io"
 import "bytes"
 
-func Box(id string, symbol *rune) templ.Component {
+func Box(id string, symbol Symbol) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -22,7 +22,7 @@ func Box(id string, symbol *rune) templ.Component {
 			var_1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var var_2 = []any{"bg-muted", "flex", "items-center", "justify-center", "text-8xl", "font-bold", templ.KV("cursor-pointer", symbol == nil), templ.KV("cursor-default", symbol != nil), "w-full", "aspect-square", "text-primary"}
+		var var_2 = []any{"bg-muted", "flex", "items-center", "justify-center", "text-8xl", "font-bold", templ.KV("cursor-pointer", symbol == 0), templ.KV("cursor-default", symbol != 0), "w-full", "aspect-square", "text-primary"}
 		err = templ.RenderCSSItems(ctx, templBuffer, var_2...)
 		if err != nil {
 			return err
@@ -31,7 +31,7 @@ func Box(id string, symbol *rune) templ.Component {
 		if err != nil {
 			return err
 		}
-		if symbol == nil {
+		if symbol == 0 {
 			_, err = templBuffer.WriteString(" ws-send")
 			if err != nil {
 				return err
@@ -57,8 +57,8 @@ func Box(id string, symbol *rune) templ.Component {
 		if err != nil {
 			return err
 		}
-		if symbol != nil {
-			var var_3 string = string(*symbol)
+		if symbol != 0 {
+			var var_3 string = string(symbol)
 			_, err = templBuffer.WriteString(templ.EscapeString(var_3))
 			if err != nil {
 				return err
@@ -92,39 +92,39 @@ func Board() templ.Component {
 		if err != nil {
 			return err
 		}
-		err = Box("c0", nil).Render(ctx, templBuffer)
+		err = Box("c0", 0).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("c1", nil).Render(ctx, templBuffer)
+		err = Box("c1", 0).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("c2", nil).Render(ctx, templBuffer)
+		err = Box("c2", 0).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("c3", nil).Render(ctx, templBuffer)
+		err = Box("c3", 0).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("c4", nil).Render(ctx, templBuffer)
+		err = Box("c4", 0).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("c5", nil).Render(ctx, templBuffer)
+		err = Box("c5", 0).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("c6", nil).Render(ctx, templBuffer)
+		err = Box("c6", 0).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("c7", nil).Render(ctx, templBuffer)
+		err = Box("c7", 0).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
-		err = Box("c8", nil).Render(ctx, templBuffer)
+		err = Box("c8", 0).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
@@ -170,6 +170,135 @@ func Game() templ.Component {
 			return err
 		}
 		_, err = templBuffer.WriteString("</div></div>")
+		if err != nil {
+			return err
+		}
+		if !templIsBuffer {
+			_, err = io.Copy(w, templBuffer)
+		}
+		return err
+	})
+}
+
+func WinBox(id int, symbol Symbol, isWinner bool) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
+		templBuffer, templIsBuffer := w.(*bytes.Buffer)
+		if !templIsBuffer {
+			templBuffer = templ.GetBuffer()
+			defer templ.ReleaseBuffer(templBuffer)
+		}
+		ctx = templ.InitializeContext(ctx)
+		var_7 := templ.GetChildren(ctx)
+		if var_7 == nil {
+			var_7 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		var var_8 = []any{"flex", "items-center", "justify-center", "text-8xl", "font-bold", "cursor-default", "w-full", "aspect-square", templ.KV("text-primary bg-muted", !isWinner), templ.KV("text-foreground bg-primary", isWinner)}
+		err = templ.RenderCSSItems(ctx, templBuffer, var_8...)
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("<div name=\"cell\" id=\"")
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString(templ.EscapeString("c" + string(id)))
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("\" class=\"")
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_8).String()))
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("\">")
+		if err != nil {
+			return err
+		}
+		if symbol != 0 {
+			var var_9 string = string(symbol)
+			_, err = templBuffer.WriteString(templ.EscapeString(var_9))
+			if err != nil {
+				return err
+			}
+		}
+		_, err = templBuffer.WriteString("</div>")
+		if err != nil {
+			return err
+		}
+		if !templIsBuffer {
+			_, err = io.Copy(w, templBuffer)
+		}
+		return err
+	})
+}
+
+func has(xs [3]int, y int) bool {
+	for _, x := range xs {
+		if x == y {
+			return true
+		}
+	}
+	return false
+}
+
+func WinBoard(board [9]Symbol, winners [3]int) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
+		templBuffer, templIsBuffer := w.(*bytes.Buffer)
+		if !templIsBuffer {
+			templBuffer = templ.GetBuffer()
+			defer templ.ReleaseBuffer(templBuffer)
+		}
+		ctx = templ.InitializeContext(ctx)
+		var_10 := templ.GetChildren(ctx)
+		if var_10 == nil {
+			var_10 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		_, err = templBuffer.WriteString("<div id=\"board\" class=\"grid grid-cols-3 gap-2 aspect-square w-3/5\">")
+		if err != nil {
+			return err
+		}
+		err = WinBox(0, board[0], has(winners, 0)).Render(ctx, templBuffer)
+		if err != nil {
+			return err
+		}
+		err = WinBox(1, board[1], has(winners, 1)).Render(ctx, templBuffer)
+		if err != nil {
+			return err
+		}
+		err = WinBox(2, board[2], has(winners, 2)).Render(ctx, templBuffer)
+		if err != nil {
+			return err
+		}
+		err = WinBox(3, board[3], has(winners, 3)).Render(ctx, templBuffer)
+		if err != nil {
+			return err
+		}
+		err = WinBox(4, board[4], has(winners, 4)).Render(ctx, templBuffer)
+		if err != nil {
+			return err
+		}
+		err = WinBox(5, board[5], has(winners, 5)).Render(ctx, templBuffer)
+		if err != nil {
+			return err
+		}
+		err = WinBox(6, board[6], has(winners, 6)).Render(ctx, templBuffer)
+		if err != nil {
+			return err
+		}
+		err = WinBox(7, board[7], has(winners, 7)).Render(ctx, templBuffer)
+		if err != nil {
+			return err
+		}
+		err = WinBox(8, board[8], has(winners, 8)).Render(ctx, templBuffer)
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("</div>")
 		if err != nil {
 			return err
 		}

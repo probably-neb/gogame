@@ -1,33 +1,34 @@
 package tictactoe
 
-templ Box(id string, symbol *rune) {
+templ Box(id string, symbol Symbol) {
     <div
-        if symbol == nil {
+        if symbol == 0 {
             ws-send
         }
         name="cell"
         id={id}
-        class={"bg-muted", "flex", "items-center", "justify-center", "text-8xl", "font-bold", templ.KV("cursor-pointer", symbol == nil), templ.KV("cursor-default", symbol != nil), "w-full", "aspect-square", "text-primary"}
+        class={"bg-muted", "flex", "items-center", "justify-center", "text-8xl", "font-bold", templ.KV("cursor-pointer", symbol == 0), templ.KV("cursor-default", symbol != 0), "w-full", "aspect-square", "text-primary"}
     >
-        if symbol != nil {
-            {string(*symbol)}
+        if symbol != 0 {
+            {string(symbol)}
         }
     </div>
 }
 
 templ Board() {
     <div id="board" class="grid grid-cols-3 gap-2 aspect-square w-3/5">
-            @Box("c0", nil)
-            @Box("c1", nil)
-            @Box("c2", nil)
-            @Box("c3", nil)
-            @Box("c4", nil)
-            @Box("c5", nil)
-            @Box("c6", nil)
-            @Box("c7", nil)
-            @Box("c8", nil)
+            @Box("c0", 0)
+            @Box("c1", 0)
+            @Box("c2", 0)
+            @Box("c3", 0)
+            @Box("c4", 0)
+            @Box("c5", 0)
+            @Box("c6", 0)
+            @Box("c7", 0)
+            @Box("c8", 0)
     </div>
 }
+
 
 templ Game() {
     <div id="ws-connection" hx-swap-oob="innerHTML">
@@ -35,5 +36,40 @@ templ Game() {
         <div id="board-container" class="flex items-center justify-center">
             @Board()
         </div>
+    </div>
+}
+
+templ WinBox(id int, symbol Symbol, isWinner bool) {
+    <div
+        name="cell"
+        id={"c" + string(id)}
+        class={"flex", "items-center", "justify-center", "text-8xl", "font-bold", "cursor-default", "w-full", "aspect-square", templ.KV("text-primary bg-muted", !isWinner), templ.KV("text-foreground bg-primary", isWinner)}
+    >
+        if symbol != 0 {
+            {string(symbol)}
+        }
+    </div>
+}
+
+func has(xs [3]int, y int) bool {
+    for _, x := range xs {
+        if x == y {
+            return true
+        }
+    }
+    return false
+}
+
+templ WinBoard(board [9]Symbol, winners [3]int) {
+    <div id="board" class="grid grid-cols-3 gap-2 aspect-square w-3/5">
+            @WinBox(0, board[0], has(winners, 0))
+            @WinBox(1, board[1], has(winners, 1))
+            @WinBox(2, board[2], has(winners, 2))
+            @WinBox(3, board[3], has(winners, 3))
+            @WinBox(4, board[4], has(winners, 4))
+            @WinBox(5, board[5], has(winners, 5))
+            @WinBox(6, board[6], has(winners, 6))
+            @WinBox(7, board[7], has(winners, 7))
+            @WinBox(8, board[8], has(winners, 8))
     </div>
 }
