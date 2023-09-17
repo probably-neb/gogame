@@ -5,7 +5,7 @@ export const URL = "http://localhost:8080/";
 
 export const E = {
     home: {
-        name: "#name",
+        name: "#display-name",
         create_room: "#create-room",
         join_room: "#join-room",
     },
@@ -14,7 +14,6 @@ export const E = {
         open: "#create-room",
         modal: "#create-room-modal",
         room_name: "#room-name",
-        display_name: "#display-name",
         create: "#create", // TODO: add this id
         cancel: "#cancel", // TODO: add this id
     },
@@ -48,8 +47,10 @@ export async function openPage(browser: ppt.Browser) {
     await page.waitForSelector(E.create_room.open);
     return page;
 }
+
 export async function createRoom(browser: ppt.Browser, name: string, hostName: string): Promise<ppt.Page> {
     let page = await openPage(browser);
+    await page.type(E.home.name, name)
     let open = await page.$(E.create_room.open);
     expect(open).to.exist.and.to.have.property("click");
     await open!.click();
@@ -57,7 +58,6 @@ export async function createRoom(browser: ppt.Browser, name: string, hostName: s
     let modal = await page.$(E.create_room.modal);
     expect(modal).to.exist
     await page.type(E.create_room.room_name, name);
-    await page.type(E.create_room.display_name, hostName);
     let create = await page.$(E.create_room.create);
     expect(create).to.exist.and.to.have.property("click");
     await create!.click()
@@ -73,6 +73,7 @@ export async function createRoom(browser: ppt.Browser, name: string, hostName: s
 
 export async function joinRoom(browser: ppt.Browser, name: string, displayName: string): Promise<ppt.Page> {
     let page = await openPage(browser);
+    await page.type(E.home.name, displayName)
     await page.click(E.join_room.join);
     await page.waitForSelector(E.join_room.rooms);
     let entries = await page.$$(E.join_room.entries);
@@ -86,17 +87,6 @@ export async function joinRoom(browser: ppt.Browser, name: string, displayName: 
     }
     await join.click();
     await page.waitForNavigation({waitUntil: "load"});
-    expect(await page.$(E.join_room.modal.id)).to.exist;
-    await page.type(E.join_room.modal.display_name, displayName);
-    expect(await page.$(E.join_room.modal.join)).to.exist;
-    await page.click(E.join_room.modal.join);
-    expect(page.$(E.room.name)).to.exist;
-    let modalDissapeared = await waitUntil(async () => {
-        // model doesn't exist
-        let modal = await page.$(E.join_room.modal.id);
-        return !modal || (await textContent(modal)) == "";
-    });
-    expect(modalDissapeared, "modal did not go away")
     return page
 }
 
