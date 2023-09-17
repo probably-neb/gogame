@@ -7,7 +7,7 @@ templ Box(id string, symbol Symbol) {
         }
         name="cell"
         id={id}
-        class={"bg-muted", "flex", "items-center", "justify-center", "text-8xl", "font-bold", templ.KV("cursor-pointer", symbol == 0), templ.KV("cursor-default", symbol != 0), "w-full", "aspect-square", "text-primary"}
+        class={"bg-muted", "flex", "items-center", "justify-center", templ.SafeClass("md:text-8xl"), "text-6xl", "font-bold", templ.KV("cursor-pointer", symbol == 0), templ.KV("cursor-default", symbol != 0), "w-full", "aspect-square", "text-primary"}
     >
         if symbol != 0 {
             {string(symbol)}
@@ -43,7 +43,7 @@ templ WinBox(id int, symbol Symbol, isWinner bool) {
     <div
         name="cell"
         id={"c" + string(id)}
-        class={"flex", "items-center", "justify-center", "text-8xl", "font-bold", "cursor-default", "w-full", "aspect-square", templ.KV("text-primary bg-muted", !isWinner), templ.KV("text-foreground bg-primary", isWinner)}
+        class={"flex", "items-center", "justify-center", templ.SafeClass("md:text-8xl"), "text-6xl", "font-bold", "cursor-default", "w-full", "aspect-square", templ.KV("text-primary bg-muted", !isWinner), templ.KV("text-foreground bg-primary", isWinner)}
     >
         if symbol != 0 {
             {string(symbol)}

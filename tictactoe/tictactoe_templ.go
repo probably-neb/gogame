@@ -22,7 +22,7 @@ func Box(id string, symbol Symbol) templ.Component {
 			var_1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var var_2 = []any{"bg-muted", "flex", "items-center", "justify-center", "text-8xl", "font-bold", templ.KV("cursor-pointer", symbol == 0), templ.KV("cursor-default", symbol != 0), "w-full", "aspect-square", "text-primary"}
+		var var_2 = []any{"bg-muted", "flex", "items-center", "justify-center", templ.SafeClass("md:text-8xl"), "text-6xl", "font-bold", templ.KV("cursor-pointer", symbol == 0), templ.KV("cursor-default", symbol != 0), "w-full", "aspect-square", "text-primary"}
 		err = templ.RenderCSSItems(ctx, templBuffer, var_2...)
 		if err != nil {
 			return err
@@ -193,7 +193,7 @@ func WinBox(id int, symbol Symbol, isWinner bool) templ.Component {
 			var_7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var var_8 = []any{"flex", "items-center", "justify-center", "text-8xl", "font-bold", "cursor-default", "w-full", "aspect-square", templ.KV("text-primary bg-muted", !isWinner), templ.KV("text-foreground bg-primary", isWinner)}
+		var var_8 = []any{"flex", "items-center", "justify-center", templ.SafeClass("md:text-8xl"), "text-6xl", "font-bold", "cursor-default", "w-full", "aspect-square", templ.KV("text-primary bg-muted", !isWinner), templ.KV("text-foreground bg-primary", isWinner)}
 		err = templ.RenderCSSItems(ctx, templBuffer, var_8...)
 		if err != nil {
 			return err
