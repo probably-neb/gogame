@@ -11,6 +11,9 @@ primary_region = "ord"
   builder = "paketobuildpacks/builder:base"
   buildpacks = ["gcr.io/paketo-buildpacks/go"]
 
+[build.args]
+  BP_KEEP_FILES = "assets/*"
+
 [env]
   PORT = "8080"
 
@@ -21,3 +24,5 @@ primary_region = "ord"
   auto_start_machines = true
   min_machines_running = 0
   processes = ["app"]
+
+
