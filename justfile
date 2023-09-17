@@ -5,7 +5,7 @@ build:
     ./gogame
 
 watch:
-    ls **.templ **.go | entr -rc just build
+    find -path '*.go' -and -not -path '*_templ.go' -or -path '*.templ' | entr -rc just build
 
 test:
     bun test
